@@ -175,7 +175,7 @@ function createClaudeCodeRuntimeAdapter(config) {
     getTurnCapabilities() {
       return {
         nativeImageInput: false,
-        toolImageRead: Boolean(config.claudeImageFileRead),
+        toolImageRead: true,
       };
     },
     async initialize() {
