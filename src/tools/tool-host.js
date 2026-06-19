@@ -127,13 +127,14 @@ const PROJECT_TOOLS = [
       properties: {
         action: {
           type: "string",
-          description: "Action: capture (save a new flash), list (browse items), update (modify one item), batch_update (bulk categorize/merge/archive), review_suggestions (get items needing review).",
-          enum: ["capture", "list", "update", "batch_update", "review_suggestions"],
+          description: "Action: capture (save a new flash), list (browse items), update (modify one item), batch_update (bulk categorize/merge/archive), review_suggestions (get items needing review), write_roundup (write consolidation note for Obsidian graph view).",
+          enum: ["capture", "list", "update", "batch_update", "review_suggestions", "write_roundup"],
         },
         text: { type: "string", description: "[capture] The raw text of the fleeting thought." },
         category: { type: "string", description: "[capture|list] Category: dev, life, idea, todo, or learning." },
         tags: { type: "array", items: { type: "string" }, description: "[capture|update] Tags for the flash item." },
         priority: { type: "string", description: "[capture|update] Priority: high, medium, or low." },
+        mood: { type: "string", description: "[capture|update] Emotion tag: excited, anxious, curious, determined, tired, or playful." },
         status: { type: "string", description: "[list] Filter by status: inbox, categorized, archived, merged, or all." },
         limit: { type: "integer", description: "[list] Max items to return (default 20)." },
         offset: { type: "integer", description: "[list] Pagination offset." },
@@ -145,6 +146,13 @@ const PROJECT_TOOLS = [
           items: { type: "object" },
         },
         since: { type: "string", description: "[review_suggestions] Optional date filter for review suggestions." },
+        // write_roundup params
+        date: { type: "string", description: "[write_roundup] Date label (YYYY-MM-DD)." },
+        theme: { type: "string", description: "[write_roundup] One-line theme summary." },
+        dedupGroups: { type: "array", items: { type: "object" }, description: "[write_roundup] Dedup groups." },
+        links: { type: "array", items: { type: "object" }, description: "[write_roundup] Flash-to-flash links: { from, to, relation }." },
+        moodCounts: { type: "object", description: "[write_roundup] Mood distribution counts." },
+        categorizedItems: { type: "array", items: { type: "object" }, description: "[write_roundup] Categorized flash items for the roundup." },
       },
       additionalProperties: false,
     },
@@ -158,6 +166,7 @@ const PROJECT_TOOLS = [
             category: args.category,
             tags: args.tags,
             priority: args.priority,
+            mood: args.mood,
           });
           return { text: `Flash captured: ${result.id}`, data: result };
         }
@@ -190,6 +199,20 @@ const PROJECT_TOOLS = [
           });
           return {
             text: `Review suggestions: ${result.inboxCount} in inbox, ${result.suggestedItems.length} suggested.${result.needsReview ? " Needs review!" : ""}`,
+            data: result,
+          };
+        }
+        case "write_roundup": {
+          result = await services.flashMemory.writeRoundup({
+            date: args.date,
+            theme: args.theme,
+            dedupGroups: args.dedupGroups,
+            links: args.links,
+            moodCounts: args.moodCounts,
+            categorizedItems: args.categorizedItems,
+          });
+          return {
+            text: `Flash roundup written: ${result.filePath}`,
             data: result,
           };
         }

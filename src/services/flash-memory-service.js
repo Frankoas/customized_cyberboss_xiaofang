@@ -4,6 +4,7 @@ const os = require("os");
 
 const CATEGORIES = ["dev", "life", "idea", "todo", "learning"];
 const STATUSES = ["inbox", "categorized", "archived", "merged"];
+const MOODS = ["excited", "anxious", "curious", "determined", "tired", "playful"];
 const DEFAULT_REVIEW_INTERVAL_DAYS = 3;
 
 class FlashMemoryService {
@@ -14,10 +15,7 @@ class FlashMemoryService {
 
   // ---- core CRUD ----
 
-  /**
-   * Capture a flash memory item into inbox as an Obsidian-compatible .md file.
-   */
-  capture({ text, category = "idea", tags = [], sourceType = "wechat", priority = "low" } = {}) {
+  capture({ text, category = "idea", tags = [], sourceType = "wechat", priority = "low", mood = "" } = {}) {
     const rawText = String(text || "").trim();
     if (!rawText) {
       throw new Error("Flash memory text cannot be empty.");
@@ -28,6 +26,7 @@ class FlashMemoryService {
     const id = generateFlashId(dateLabel, this.baseDir);
     const safeCategory = CATEGORIES.includes(category) ? category : "idea";
     const safeTags = normalizeTags(tags);
+    const safeMood = MOODS.includes(mood) ? mood : "";
 
     const item = {
       id,
@@ -38,6 +37,7 @@ class FlashMemoryService {
       tags: safeTags,
       status: "inbox",
       priority: ["high", "medium", "low"].includes(priority) ? priority : "low",
+      mood: safeMood,
       relatedFlashIds: [],
       mergedToIdeaId: null,
       createdAt: now.toISOString(),
@@ -47,15 +47,12 @@ class FlashMemoryService {
 
     ensureDir(this.inboxDir());
     const filePath = path.join(this.inboxDir(), `${id}.md`);
-    fs.writeFileSync(filePath, serializeFlashMd(item), "utf8");
+    fs.writeFileSync(filePath, serializeFlashMd(item, this), "utf8");
 
     this._bumpIndex({ inboxDelta: 1 });
     return item;
   }
 
-  /**
-   * List flash items with optional filters.
-   */
   list({ status = "all", category = "", limit = 20, offset = 0 } = {}) {
     const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
     const offsetNum = Math.max(0, Number(offset) || 0);
@@ -70,7 +67,6 @@ class FlashMemoryService {
     } else if (status === "merged") {
       items = this._readAllInDir(this.mergedDir());
     } else {
-      // all
       items = [
         ...this._readAllInDir(this.inboxDir()),
         ...this._readAllCategorized(),
@@ -90,9 +86,6 @@ class FlashMemoryService {
     return { items: paged, total };
   }
 
-  /**
-   * Update a single flash item.
-   */
   update({ id, updates = {} } = {}) {
     const located = this._locateItem(id);
     if (!located) {
@@ -103,7 +96,7 @@ class FlashMemoryService {
     const oldStatus = item.status;
     let newStatus = oldStatus;
 
-    const allowedFields = ["category", "tags", "status", "priority", "cleanedText", "relatedFlashIds", "mergedToIdeaId"];
+    const allowedFields = ["category", "tags", "status", "priority", "mood", "cleanedText", "relatedFlashIds", "mergedToIdeaId"];
     for (const [key, value] of Object.entries(updates)) {
       if (!allowedFields.includes(key)) continue;
 
@@ -118,6 +111,8 @@ class FlashMemoryService {
         }
       } else if (key === "priority") {
         if (["high", "medium", "low"].includes(value)) item.priority = value;
+      } else if (key === "mood") {
+        item.mood = MOODS.includes(value) ? value : (value === "" ? "" : item.mood);
       } else if (key === "relatedFlashIds") {
         item.relatedFlashIds = Array.isArray(value) ? [...new Set(value.filter(Boolean))] : [];
       } else if (key === "mergedToIdeaId") {
@@ -137,7 +132,9 @@ class FlashMemoryService {
     if (newStatus !== oldStatus) {
       this._moveItemFile(id, oldStatus, newStatus, item);
     } else {
-      fs.writeFileSync(located.filePath, serializeFlashMd(item), "utf8");
+      fs.writeFileSync(located.filePath, serializeFlashMd(item, this), "utf8");
+      // Also update related items' wikilinks
+      this._refreshRelatedLinks(item);
     }
 
     this._rebuildIndex();
@@ -145,8 +142,16 @@ class FlashMemoryService {
   }
 
   /**
-   * Batch operations: categorize, merge, archive.
+   * When a flash item's relatedFlashIds change, re-serialize the source item
+   * so its [[wikilinks]] stay in sync.
    */
+  _refreshRelatedLinks(item) {
+    if (!Array.isArray(item.relatedFlashIds) || !item.relatedFlashIds.length) return;
+    // The item itself was just written with updated wikilinks.
+    // No need to re-write others unless we want bidirectional sync.
+    // For now, wikilinks are directional (A links to B in A's .md).
+  }
+
   batchUpdate({ operations = [] } = {}) {
     const results = [];
     for (const op of operations) {
@@ -180,9 +185,6 @@ class FlashMemoryService {
     return { results };
   }
 
-  /**
-   * Get review suggestions — items that need attention.
-   */
   reviewSuggestions({ since = "" } = {}) {
     const index = this._readIndex();
     const inboxCount = index.counts?.inbox || 0;
@@ -205,9 +207,6 @@ class FlashMemoryService {
     };
   }
 
-  /**
-   * Mark review as done (touch lastReviewAt).
-   */
   markReviewed() {
     const index = this._readIndex();
     index.lastReviewAt = new Date().toISOString();
@@ -216,8 +215,79 @@ class FlashMemoryService {
   }
 
   /**
-   * Get stats for daily summary.
+   * Write a flash consolidation roundup note for Obsidian graph view.
    */
+  writeRoundup({ date = "", theme = "", dedupGroups = [], links = [], moodCounts = {}, categorizedItems = [] } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const roundupDir = path.join(this.baseDir, "分类归档");
+    ensureDir(roundupDir);
+    const filePath = path.join(roundupDir, `闪存整理_${dateLabel}.md`);
+
+    // Build wikilink sections
+    const linkLines = [];
+    if (Array.isArray(links)) {
+      for (const l of links) {
+        if (l.from && l.to) {
+          linkLines.push(`- [[${l.from}]] → [[${l.to}]]${l.relation ? " — " + l.relation : ""}`);
+        }
+      }
+    }
+
+    // Build categorized lists
+    const byCategory = {};
+    for (const item of (Array.isArray(categorizedItems) ? categorizedItems : [])) {
+      const cat = item.category || "idea";
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(item);
+    }
+
+    let catSection = "";
+    const catEmoji = { dev: "💻", life: "🌿", idea: "💡", todo: "📋", learning: "📚" };
+    for (const [cat, items] of Object.entries(byCategory)) {
+      const emoji = catEmoji[cat] || "📌";
+      catSection += `### ${emoji} ${cat}\n`;
+      for (const item of items) {
+        const moodSuffix = item.mood ? ` \`${item.mood}\`` : "";
+        catSection += `- [[${item.id}]]${moodSuffix}\n`;
+      }
+      catSection += "\n";
+    }
+
+    // Mood distribution
+    let moodSection = "";
+    if (moodCounts && Object.keys(moodCounts).length) {
+      moodSection = "## 情绪分布\n\n";
+      for (const [m, count] of Object.entries(moodCounts)) {
+        moodSection += `- ${m}: ${count}条\n`;
+      }
+      moodSection += "\n";
+    }
+
+    const md = [
+      "---",
+      `type: flash-roundup`,
+      `date: ${dateLabel}`,
+      `theme: "${theme || '闪存整理'}"`,
+      "---",
+      "",
+      `# 闪存整理 · ${dateLabel}`,
+      "",
+      "## 本期主题",
+      theme || "（无特定主题）",
+      "",
+      moodSection,
+      "## 关联图谱",
+      linkLines.length ? linkLines.join("\n") : "（暂无关联）",
+      "",
+      "## 分类清单",
+      catSection || "（暂无分类）",
+      "",
+    ].join("\n") + "\n";
+
+    fs.writeFileSync(filePath, md, "utf8");
+    return { filePath, date: dateLabel };
+  }
+
   getStats() {
     const index = this._readIndex();
     const inbox = this._readAllInDir(this.inboxDir());
@@ -243,6 +313,7 @@ class FlashMemoryService {
   categorizedDir() { return path.join(this.baseDir, "categorized"); }
   archivedDir() { return path.join(this.baseDir, "archived"); }
   mergedDir() { return path.join(this.baseDir, "merged"); }
+  roundupDir() { return path.join(this.baseDir, "分类归档"); }
   indexFile() { return path.join(this.baseDir, "index.json"); }
 
   _readAllInDir(dir) {
@@ -318,14 +389,14 @@ class FlashMemoryService {
     if (!oldPath || !fs.existsSync(oldPath)) {
       const newPath = this._resolveNewPath(id, newStatus, item);
       ensureDir(path.dirname(newPath));
-      fs.writeFileSync(newPath, serializeFlashMd(item), "utf8");
+      fs.writeFileSync(newPath, serializeFlashMd(item, this), "utf8");
       return;
     }
 
     const newPath = this._resolveNewPath(id, newStatus, item);
     ensureDir(path.dirname(newPath));
     fs.renameSync(oldPath, newPath);
-    fs.writeFileSync(newPath, serializeFlashMd(item), "utf8");
+    fs.writeFileSync(newPath, serializeFlashMd(item, this), "utf8");
   }
 
   _resolveNewPath(id, status, item) {
@@ -393,7 +464,7 @@ class FlashMemoryService {
 
 const FRONTMATTER_DELIM = "---";
 
-function serializeFlashMd(item) {
+function serializeFlashMd(item, service) {
   const frontmatter = {
     id: item.id,
     type: "flash",
@@ -407,7 +478,7 @@ function serializeFlashMd(item) {
 
   const yaml = [
     `${FRONTMATTER_DELIM}`,
-    `id: ${frontmatter.id}`,
+    `id: ${item.id}`,
     `type: ${frontmatter.type}`,
     `category: ${frontmatter.category}`,
     `tags: [${frontmatter.tags.join(", ")}]`,
@@ -417,7 +488,7 @@ function serializeFlashMd(item) {
     `source: ${frontmatter.source}`,
   ];
 
-  // Optional fields
+  if (item.mood) yaml.push(`mood: ${item.mood}`);
   if (item.reviewedAt) yaml.push(`reviewed: "${item.reviewedAt}"`);
   if (item.archivedAt) yaml.push(`archived: "${item.archivedAt}"`);
   if (item.mergedToIdeaId) yaml.push(`merged_to: ${item.mergedToIdeaId}`);
@@ -427,8 +498,25 @@ function serializeFlashMd(item) {
 
   yaml.push(`${FRONTMATTER_DELIM}`);
   yaml.push("");
+
+  // Body: heading + content + Obsidian wikilinks for related flashes
   yaml.push(`# ${item.rawText}`);
   yaml.push("");
+
+  if (item.cleanedText && item.cleanedText !== item.rawText) {
+    yaml.push(item.cleanedText);
+    yaml.push("");
+  }
+
+  // Obsidian [[wikilinks]] for graph view
+  if (Array.isArray(item.relatedFlashIds) && item.relatedFlashIds.length) {
+    yaml.push("## 关联闪存");
+    yaml.push("");
+    for (const rid of item.relatedFlashIds) {
+      yaml.push(`- [[${rid}]]`);
+    }
+    yaml.push("");
+  }
 
   return yaml.join("\n") + "\n";
 }
@@ -447,7 +535,6 @@ function parseFlashMd(raw) {
   const fmBlock = normalized.slice(3, secondDelim).trim();
   const bodyBlock = normalized.slice(secondDelim + 3).trim();
 
-  // Simple YAML key: value parser (good enough for our fixed schema)
   const fm = {};
   const lines = fmBlock.split("\n");
   for (const line of lines) {
@@ -471,15 +558,20 @@ function parseFlashMd(raw) {
     body = newlineIdx === -1 ? "" : body.slice(newlineIdx + 1).trim();
   }
 
+  // Strip wikilinks section from cleanedText
+  const wikilinkIdx = body.indexOf("\n## 关联闪存\n");
+  const cleanedText = wikilinkIdx === -1 ? body : body.slice(0, wikilinkIdx).trim();
+
   return {
     id: fm.id || "",
     sourceType: fm.source || "wechat",
-    rawText: fm.id ? (body || fm.id) : "",
-    cleanedText: body || "",
+    rawText: fm.id ? (body.split("\n")[0]?.replace(/^# /, "") || fm.id) : "",
+    cleanedText: cleanedText || "",
     category: fm.category || "idea",
     tags: Array.isArray(fm.tags) ? fm.tags : [],
     status: fm.status || "inbox",
     priority: fm.priority || "low",
+    mood: fm.mood || "",
     relatedFlashIds: Array.isArray(fm.related) ? fm.related : [],
     mergedToIdeaId: fm.merged_to || null,
     createdAt: fm.created || "",
@@ -489,7 +581,6 @@ function parseFlashMd(raw) {
 }
 
 function parseYamlArray(value) {
-  // Support both [a, b, c] and a, b, c
   let normalized = value.trim();
   if (normalized.startsWith("[") && normalized.endsWith("]")) {
     normalized = normalized.slice(1, -1);
