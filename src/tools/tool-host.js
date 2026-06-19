@@ -366,8 +366,8 @@ const PROJECT_TOOLS = [
       properties: {
         action: {
           type: "string",
-          description: "Action: generate (create a summary for a date), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate).",
-          enum: ["generate", "status", "append_plan", "finalize", "read", "check"],
+          description: "Action: generate (create a summary for a date), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate), attach_screenshot (embed a screenshot image into the summary MD file).",
+          enum: ["generate", "status", "append_plan", "finalize", "read", "check", "attach_screenshot"],
         },
         date: { type: "string", description: "[all] Target date in YYYY-MM-DD. Defaults to today." },
         format: { type: "string", description: "[generate] Output format: full (complete summary with all sections) or brief (stats-only)." },
@@ -377,6 +377,7 @@ const PROJECT_TOOLS = [
           description: "[generate] Sections to include: timeline, flash, diary, quiz, tasks. Default: all.",
         },
         plan: { type: "string", description: "[append_plan] Tomorrow's plan text to append." },
+        screenshotPath: { type: "string", description: "[attach_screenshot] Absolute path to the screenshot PNG file to embed." },
       },
       additionalProperties: false,
     },
@@ -464,6 +465,16 @@ const PROJECT_TOOLS = [
           return {
             text: `Summary content loaded (${mdContent.length} chars).`,
             data: { date: dateLabel, filePath: targetFile, mdContent },
+          };
+        }
+        case "attach_screenshot": {
+          const result = svc.attachScreenshot({
+            date: args.date,
+            screenshotPath: args.screenshotPath,
+          });
+          return {
+            text: `Screenshot attached to ${result.date} summary: ${result.filePath}`,
+            data: result,
           };
         }
         default:

@@ -989,6 +989,9 @@ class CyberbossApp {
       case "star":
         await this.handleStarCommand(normalized);
         return;
+      case "summary":
+        await this.handleSummaryCommand(normalized);
+        return;
       case "help":
         await this.handleHelpCommand(normalized);
         return;
@@ -1448,6 +1451,54 @@ class CyberbossApp {
       filePath: path.join(__dirname, "../../assets/star-guide.jpg"),
       contextToken: normalized.contextToken,
     }).catch(() => {});
+  }
+
+  async handleSummaryCommand(normalized) {
+    const bindingKey = this.runtimeAdapter.getSessionStore().buildBindingKey({
+      workspaceId: normalized.workspaceId,
+      accountId: normalized.accountId,
+      senderId: normalized.senderId,
+    });
+    const workspaceRoot = this.resolveWorkspaceRoot(bindingKey);
+    const { DailySummaryScheduler } = require("../services/daily-summary-scheduler");
+    const scheduler = new DailySummaryScheduler({
+      config: { stateDir: this.config.stateDir },
+    });
+    const state = scheduler.getState();
+
+    if (state.generatedToday) {
+      await this.channelAdapter.sendText({
+        userId: normalized.senderId,
+        text: "📝 今天的总结已经生成好啦～发送 /summary 可以再看，或者直接跟我说「看看今天的总结」",
+        contextToken: normalized.contextToken,
+      });
+      return;
+    }
+
+    if (state.draftToday) {
+      await this.channelAdapter.sendText({
+        userId: normalized.senderId,
+        text: "📝 今天的总结草稿已经有了～要修改还是直接定稿？跟我说就好",
+        contextToken: normalized.contextToken,
+      });
+      return;
+    }
+
+    // Enqueue a system message to prompt the model to generate the summary
+    this.systemMessageQueue.enqueue({
+      id: `summary-cmd:${crypto.randomUUID()}`,
+      accountId: this.activeAccountId || normalized.accountId,
+      senderId: normalized.senderId,
+      workspaceRoot,
+      text: scheduler.buildSummaryTrigger(),
+      createdAt: new Date().toISOString(),
+    });
+
+    await this.channelAdapter.sendText({
+      userId: normalized.senderId,
+      text: "📝 收到，正在为你生成今天的总结…",
+      contextToken: normalized.contextToken,
+    });
   }
 
   async handleHelpCommand(normalized) {

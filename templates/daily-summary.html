@@ -29,8 +29,8 @@
     --cat-care: #ECD5E3; --cat-care-ink: #6a4458;
     --cat-travel: #F1B598; --cat-travel-ink: #6d3a1e;
     --cat-rest: #FDECDF; --cat-rest-ink: #7a5a40;
-    --font-sans: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
-    --font-serif: "Iowan Old Style", "Songti SC", serif;
+    --font-sans: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --font-serif: "Songti SC", "Noto Serif CJK SC", "Iowan Old Style", serif;
     --text-xs: 12px; --text-sm: 13px; --text-md: 14px;
     --text-lg: 18px; --text-xl: 24px;
     --text-hero: clamp(32px, 4vw, 46px);
@@ -80,22 +80,21 @@
     font-size: var(--text-sm);
     color: var(--ink-3);
     letter-spacing: 0.12em;
-    text-transform: uppercase;
   }
 
   /* Stat row */
   .stat-row {
     display: flex;
     justify-content: center;
-    gap: 32px;
+    gap: 24px;
     flex-wrap: wrap;
     margin-top: 20px;
   }
 
   .stat-card {
     text-align: center;
-    min-width: 80px;
-    padding: 12px 16px;
+    min-width: 72px;
+    padding: 10px 14px;
     background: var(--paper-2);
     border: 1px solid var(--rule-soft);
     border-radius: 12px;
@@ -104,7 +103,7 @@
 
   .stat-value {
     font-family: var(--font-serif);
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1;
     color: var(--ink);
     margin-bottom: 4px;
@@ -113,7 +112,7 @@
   .stat-label {
     font-size: var(--text-xs);
     color: var(--ink-3);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
   }
 
   /* Sections */
@@ -126,7 +125,7 @@
     background: var(--paper-2);
     border: 1px solid var(--rule-soft);
     border-radius: 14px;
-    padding: 24px 28px;
+    padding: 20px 24px;
     box-shadow: var(--shadow-sm);
   }
 
@@ -134,14 +133,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
     border-bottom: 1px solid var(--rule-soft);
   }
 
   .section-icon {
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
+    flex-shrink: 0;
   }
 
   .section-title {
@@ -155,40 +155,46 @@
     font-size: var(--text-xs);
     color: var(--ink-3);
     margin-left: auto;
+    white-space: nowrap;
   }
 
-  /* Timeline events */
+  /* Timeline events — compact, allow wrapping */
   .event-list {
     display: grid;
-    gap: 8px;
+    gap: 6px;
   }
 
   .event-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
     align-items: baseline;
-    gap: 10px;
-    padding: 6px 0;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px dotted var(--rule-soft);
   }
+  .event-row:last-child { border-bottom: none; }
 
   .event-time {
     font-size: var(--text-xs);
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    min-width: 96px;
     text-align: right;
   }
 
   .event-title {
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
     color: var(--ink);
-    flex: 1;
+    line-height: 1.4;
+    word-break: break-all;
+    overflow-wrap: break-word;
   }
 
   .event-dur {
     font-size: var(--text-xs);
     color: var(--ink-4);
     white-space: nowrap;
+    text-align: right;
   }
 
   /* Flash items */
@@ -218,9 +224,74 @@
     display: inline-block;
     font-size: 10px;
     color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     margin-left: 8px;
+  }
+
+  /* Flash Q&A */
+  .flash-qa-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .flash-qa-item {
+    padding: 10px 14px;
+    background: color-mix(in oklch, var(--cat-social) 20%, transparent);
+    border-radius: 10px;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  .flash-qa-original {
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+
+  .flash-qa-exchange {
+    padding-left: 12px;
+    border-left: 2px solid var(--rule);
+    margin-top: 4px;
+  }
+
+  .flash-qa-q {
+    color: var(--accent);
+    font-size: var(--text-xs);
+    margin-bottom: 2px;
+  }
+
+  .flash-qa-a {
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    margin-bottom: 8px;
+  }
+  .flash-qa-a:last-child { margin-bottom: 0; }
+
+  /* Memory capsule */
+  .capsule-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .capsule-item {
+    padding: 12px 16px;
+    background: color-mix(in oklch, var(--cat-care) 25%, transparent);
+    border-radius: 12px;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  .capsule-item .capsule-theme {
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+    font-size: var(--text-md);
+  }
+
+  .capsule-item .capsule-flashes {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    margin-top: 4px;
   }
 
   /* Diary entries */
@@ -296,6 +367,50 @@
     color: transparent;
   }
 
+  /* Idea refinement — placeholder */
+  .idea-section {
+    background: color-mix(in oklch, var(--accent-soft) 18%, transparent);
+    border: 1px dashed var(--accent-soft);
+    border-radius: 14px;
+    padding: 20px 24px;
+  }
+
+  .idea-section .section-header {
+    border-bottom-color: color-mix(in oklch, var(--accent-soft) 40%, transparent);
+  }
+
+  .idea-placeholder {
+    text-align: center;
+    padding: 16px;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.7;
+  }
+
+  .idea-draft-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .idea-draft-item {
+    padding: 8px 12px;
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+    border-radius: 8px;
+    font-size: var(--text-sm);
+    color: var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .idea-refined {
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+    white-space: nowrap;
+  }
+
   /* Empty state */
   .empty-state {
     text-align: center;
@@ -337,7 +452,7 @@
   <!-- Hero Section -->
   <div class="hero">
     <div class="hero-date">📋 {{dateLabel}}</div>
-    <div class="hero-subtitle">日终总结 · Daily Summary</div>
+    <div class="hero-subtitle">日终总结</div>
     <div class="stat-row">
       <div class="stat-card">
         <div class="stat-value">{{eventCount}}</div>
@@ -361,7 +476,7 @@
   <!-- Sections -->
   <div class="sections">
 
-    <!-- Timeline -->
+    <!-- 1. Timeline -->
     <div class="section" id="section-timeline">
       <div class="section-header">
         <span class="section-icon">⏱</span>
@@ -374,7 +489,7 @@
         <div class="event-row">
           <span class="event-time">{{start}} - {{end}}</span>
           <span class="event-title">{{title}}</span>
-          {{#duration}}<span class="event-dur">{{duration}}min</span>{{/duration}}
+          {{#duration}}<span class="event-dur">{{duration}}分钟</span>{{/duration}}
         </div>
         {{/events}}
         {{^events}}
@@ -384,7 +499,52 @@
       {{/timelineEvents}}
     </div>
 
-    <!-- Flash -->
+    <!-- 2. Flash Q&A — 记忆碎片问答 -->
+    <div class="section" id="section-flash-qa">
+      <div class="section-header">
+        <span class="section-icon">💬</span>
+        <span class="section-title">记忆碎片问答</span>
+        <span class="section-count">{{flashQaCount}} 条</span>
+      </div>
+      {{#flashQaSection}}
+      <div class="flash-qa-list">
+        {{#qaItems}}
+        <div class="flash-qa-item">
+          <div class="flash-qa-original">{{original}}</div>
+          <div class="flash-qa-exchange">{{exchangesHtml}}</div>
+        </div>
+        {{/qaItems}}
+        {{^qaItems}}
+        <div class="empty-state">今日无碎片问答</div>
+        {{/qaItems}}
+      </div>
+      {{/flashQaSection}}
+    </div>
+
+    <!-- 3. Memory Capsules — 记忆胶囊 -->
+    <div class="section" id="section-capsules">
+      <div class="section-header">
+        <span class="section-icon">💊</span>
+        <span class="section-title">记忆胶囊</span>
+        <span class="section-count">{{capsuleCount}} 组</span>
+      </div>
+      {{#capsuleSection}}
+      <div class="capsule-list">
+        {{#capsules}}
+        <div class="capsule-item">
+          <div class="capsule-theme">{{theme}}</div>
+          <div>{{summary}}</div>
+          <div class="capsule-flashes">{{linkedCount}} 条关联闪存</div>
+        </div>
+        {{/capsules}}
+        {{^capsules}}
+        <div class="empty-state">今日无记忆胶囊 · 闪存关联会在积累后自动生成</div>
+        {{/capsules}}
+      </div>
+      {{/capsuleSection}}
+    </div>
+
+    <!-- 4. Flash Inspiration -->
     <div class="section" id="section-flash">
       <div class="section-header">
         <span class="section-icon">💡</span>
@@ -407,7 +567,7 @@
       {{/flashItems}}
     </div>
 
-    <!-- Tasks -->
+    <!-- 5. Tasks -->
     <div class="section" id="section-tasks">
       <div class="section-header">
         <span class="section-icon">✅</span>
@@ -443,7 +603,7 @@
       {{/taskSection}}
     </div>
 
-    <!-- Diary -->
+    <!-- 6. Diary -->
     <div class="section" id="section-diary">
       <div class="section-header">
         <span class="section-icon">📝</span>
@@ -465,7 +625,7 @@
       {{/diarySection}}
     </div>
 
-    <!-- Quiz -->
+    <!-- 7. Quiz -->
     <div class="section" id="section-quiz">
       <div class="section-header">
         <span class="section-icon">🧠</span>
@@ -496,7 +656,33 @@
       {{/quizSection}}
     </div>
 
-    <!-- Tomorrow Plan -->
+    <!-- 8. Idea Refinement — 大构思完善 -->
+    <div class="idea-section" id="section-idea">
+      <div class="section-header">
+        <span class="section-icon">🏗️</span>
+        <span class="section-title">大构思完善</span>
+        <span class="section-count">{{ideaDraftCount}} 篇</span>
+      </div>
+      {{#ideaSection}}
+      <div class="idea-draft-list">
+        {{#drafts}}
+        <div class="idea-draft-item">
+          <span>📄 {{title}}</span>
+          <span class="idea-refined">{{lastRefined}}</span>
+        </div>
+        {{/drafts}}
+        {{^drafts}}
+        <div class="idea-placeholder">
+          🏗️ 大构思完善功能已就绪<br>
+          将你的构思草稿放入 <code>大构思/</code> 目录，Cyberboss 会用苏格拉底式提问帮你打磨<br>
+          <span style="font-size: var(--text-xs); color: var(--ink-4);">Phase 4 · 即将上线</span>
+        </div>
+        {{/drafts}}
+      </div>
+      {{/ideaSection}}
+    </div>
+
+    <!-- 9. Tomorrow Plan -->
     <div class="tomorrow-plan" id="section-plan">
       <div class="section-header" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
         <span class="section-icon">🔮</span>

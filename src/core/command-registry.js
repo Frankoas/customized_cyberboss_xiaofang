@@ -239,6 +239,13 @@ const COMMAND_GROUPS = [
         status: "active",
       },
       {
+        action: "app.summary",
+        summary: "Generate or check the daily summary",
+        terminal: [],
+        weixin: ["/summary"],
+        status: "active",
+      },
+      {
         action: "app.star",
         summary: "Star the project on GitHub",
         terminal: [],
@@ -335,6 +342,7 @@ function actionEmoji(action) {
     case "model.inspect":
     case "model.select": return "🤖";
     case "app.help": return "❓";
+    case "app.summary": return "📝";
     case "app.star": return "⭐️";
     default: return "•";
   }

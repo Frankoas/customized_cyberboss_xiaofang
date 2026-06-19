@@ -15,7 +15,7 @@ class DailySummaryService {
   async generate({
     date = "",
     format = "full",
-    includeSections = ["timeline", "flash", "diary", "quiz", "tasks"],
+    includeSections = ["timeline", "flashQa", "capsules", "flash", "diary", "quiz", "tasks", "ideas"],
   } = {}) {
     const dateLabel = date || formatDate(new Date());
     const sections = {};
@@ -25,24 +25,39 @@ class DailySummaryService {
       sections.timeline = await this._aggregateTimeline(dateLabel);
     }
 
-    // 2. Diary entries for the day
-    if (includeSections.includes("diary")) {
-      sections.diary = this._aggregateDiary(dateLabel);
+    // 2. Flash Q&A — memory fragment conversations
+    if (includeSections.includes("flashQa")) {
+      sections.flashQa = this._aggregateFlashQa(dateLabel);
     }
 
-    // 3. Flash memory items captured today
+    // 3. Memory capsules — linked flash clusters & roundups
+    if (includeSections.includes("capsules")) {
+      sections.capsules = this._aggregateCapsules(dateLabel);
+    }
+
+    // 4. Flash memory items captured today
     if (includeSections.includes("flash")) {
       sections.flash = this._aggregateFlash(dateLabel);
     }
 
-    // 4. Quiz/learning records for the day
+    // 5. Diary entries for the day
+    if (includeSections.includes("diary")) {
+      sections.diary = this._aggregateDiary(dateLabel);
+    }
+
+    // 6. Quiz/learning records for the day
     if (includeSections.includes("quiz")) {
       sections.quiz = this._aggregateQuiz(dateLabel);
     }
 
-    // 5. Task completion
+    // 7. Task completion
     if (includeSections.includes("tasks")) {
       sections.tasks = this._aggregateTasks(dateLabel);
+    }
+
+    // 8. Idea refinement drafts
+    if (includeSections.includes("ideas")) {
+      sections.ideas = this._aggregateIdeas(dateLabel);
     }
 
     // Build the full summary data
@@ -344,6 +359,243 @@ class DailySummaryService {
     }
   }
 
+  /**
+   * Aggregate flash Q&A — parse Q:/A: pairs from flash cleanedText.
+   * These are the follow-up conversations the model had with the user
+   * after capturing a flash memory item.
+   */
+  _aggregateFlashQa(dateLabel) {
+    try {
+      if (!this.services.flashMemory) {
+        return { qaCount: 0, qaItems: [] };
+      }
+
+      const allItems = this.services.flashMemory.list({ status: "all", limit: 200 });
+      const todayItems = (allItems?.items || []).filter(
+        (item) => (item.createdAt || "").startsWith(dateLabel)
+      );
+
+      const qaItems = [];
+      for (const item of todayItems) {
+        const text = item.cleanedText || item.rawText || "";
+        // Parse Q&A pairs: lines starting with "Q:" and "A:"
+        const lines = text.split("\n");
+        const exchanges = [];
+        let currentQ = null;
+        let original = text;
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("Q:") || trimmed.startsWith("Q：")) {
+            currentQ = trimmed.replace(/^Q[：:]\s*/, "");
+          } else if ((trimmed.startsWith("A:") || trimmed.startsWith("A：")) && currentQ) {
+            exchanges.push({ q: currentQ, a: trimmed.replace(/^A[：:]\s*/, "") });
+            currentQ = null;
+          }
+        }
+
+        if (exchanges.length > 0) {
+          // Extract the original flash text (before the first Q:)
+          const firstQIdx = Math.min(
+            ...["Q:", "Q："].map((prefix) => {
+              const idx = text.indexOf(`\n${prefix}`);
+              return idx === -1 ? Infinity : idx;
+            })
+          );
+          if (firstQIdx !== Infinity) {
+            original = text.slice(0, firstQIdx).trim();
+          }
+          qaItems.push({ id: item.id, original, exchanges });
+        }
+      }
+
+      return {
+        qaCount: qaItems.reduce((sum, item) => sum + item.exchanges.length, 0),
+        qaItems,
+      };
+    } catch {
+      return { qaCount: 0, qaItems: [] };
+    }
+  }
+
+  /**
+   * Aggregate memory capsules — linked flash clusters and roundup themes.
+   * A "capsule" is a group of related flash items that form a coherent theme,
+   * discovered through relatedFlashIds links or roundup consolidation notes.
+   */
+  _aggregateCapsules(dateLabel) {
+    try {
+      if (!this.services.flashMemory) {
+        return { capsuleCount: 0, capsules: [] };
+      }
+
+      const allItems = this.services.flashMemory.list({ status: "all", limit: 300 });
+      const items = allItems?.items || [];
+
+      // Find flash items with relatedFlashIds (clusters)
+      const linkedItems = items.filter(
+        (item) => Array.isArray(item.relatedFlashIds) && item.relatedFlashIds.length > 0
+      );
+
+      // Build capsule groups from today's linked items
+      const todayLinked = linkedItems.filter(
+        (item) => (item.createdAt || "").startsWith(dateLabel)
+      );
+
+      const capsules = [];
+      const seen = new Set();
+
+      for (const item of todayLinked) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+
+        // Collect all related items in the cluster
+        const clusterIds = new Set([item.id, ...item.relatedFlashIds]);
+        const clusterItems = [item];
+
+        for (const rid of item.relatedFlashIds) {
+          if (!seen.has(rid)) {
+            seen.add(rid);
+            const related = items.find((i) => i.id === rid);
+            if (related) clusterItems.push(related);
+          }
+        }
+
+        // Derive a theme from categories and tags
+        const categories = [...new Set(clusterItems.map((i) => i.category).filter(Boolean))];
+        const tags = [...new Set(clusterItems.flatMap((i) => i.tags || []))];
+        const theme = tags.slice(0, 2).join(" · ") || categories.join(" · ") || "记忆碎片群";
+        const summary = clusterItems
+          .map((i) => (i.cleanedText || i.rawText || "").split("\n")[0])
+          .filter(Boolean)
+          .slice(0, 3)
+          .join("；");
+
+        capsules.push({
+          theme,
+          summary: summary || `${clusterItems.length} 条关联闪存`,
+          linkedCount: clusterItems.length,
+          itemIds: [...clusterIds],
+        });
+      }
+
+      // Also check for roundup notes in the Obsidian vault
+      const roundupCapsules = this._readRoundupCapsules(dateLabel);
+      for (const rc of roundupCapsules) {
+        // Avoid duplicates by theme
+        if (!capsules.some((c) => c.theme === rc.theme)) {
+          capsules.push(rc);
+        }
+      }
+
+      return {
+        capsuleCount: capsules.length,
+        capsules: capsules.slice(0, 10),
+      };
+    } catch {
+      return { capsuleCount: 0, capsules: [] };
+    }
+  }
+
+  /**
+   * Read roundup consolidation notes from the Obsidian vault.
+   */
+  _readRoundupCapsules(dateLabel) {
+    try {
+      const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+      if (!obsidianDir) return [];
+
+      const roundupDir = path.join(obsidianDir, "分类归档");
+      if (!fs.existsSync(roundupDir)) return [];
+
+      const capsules = [];
+      const files = fs.readdirSync(roundupDir, { withFileTypes: true });
+      for (const file of files) {
+        if (!file.isFile() || !file.name.endsWith(".md")) continue;
+        const filePath = path.join(roundupDir, file.name);
+        const stat = fs.statSync(filePath);
+        const fileDate = formatDate(stat.mtime);
+        // Include roundups from today or recent 3 days
+        if (fileDate === dateLabel || this._daysBetween(fileDate, dateLabel) <= 3) {
+          const raw = fs.readFileSync(filePath, "utf8");
+          const lines = raw.split("\n").filter(Boolean);
+          const theme = file.name.replace(/\.md$/, "");
+          const summary = lines.slice(0, 3).join(" ").slice(0, 200);
+          capsules.push({
+            theme,
+            summary: summary || "闪存整理笔记",
+            linkedCount: (raw.match(/\[\[/g) || []).length,
+            roundup: true,
+          });
+        }
+      }
+
+      return capsules;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Aggregate idea refinement drafts — check the 大构思 directory.
+   */
+  _aggregateIdeas(dateLabel) {
+    try {
+      const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+      const ideasDir = obsidianDir
+        ? path.join(obsidianDir, "大构思")
+        : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "ideas");
+
+      if (!fs.existsSync(ideasDir)) {
+        return { draftCount: 0, drafts: [] };
+      }
+
+      const drafts = [];
+      const files = fs.readdirSync(ideasDir, { withFileTypes: true });
+      for (const file of files) {
+        if (!file.isFile() || !file.name.endsWith(".md")) continue;
+        const filePath = path.join(ideasDir, file.name);
+        const stat = fs.statSync(filePath);
+        let title = file.name.replace(/\.md$/, "");
+        let lastRefined = "";
+
+        // Try to read the title from the markdown frontmatter or first heading
+        try {
+          const raw = fs.readFileSync(filePath, "utf8");
+          const h1Match = raw.match(/^#\s+(.+)$/m);
+          if (h1Match) title = h1Match[1];
+          lastRefined = formatDate(stat.mtime);
+        } catch { /* ignore */ }
+
+        drafts.push({
+          title,
+          filePath,
+          lastRefined,
+        });
+      }
+
+      return {
+        draftCount: drafts.length,
+        drafts: drafts.slice(0, 10),
+      };
+    } catch {
+      return { draftCount: 0, drafts: [] };
+    }
+  }
+
+  /**
+   * Helper: days between two YYYY-MM-DD dates.
+   */
+  _daysBetween(a, b) {
+    try {
+      const da = new Date(a);
+      const db = new Date(b);
+      return Math.abs(Math.round((db - da) / 86400000));
+    } catch {
+      return Infinity;
+    }
+  }
+
   _computeStats(sections) {
     return {
       eventCount: sections.timeline?.eventCount || 0,
@@ -351,10 +603,13 @@ class DailySummaryService {
       diaryEntryCount: sections.diary?.entryCount || 0,
       flashTodayCount: sections.flash?.todayCount || 0,
       flashInboxCount: sections.flash?.inboxCount || 0,
+      flashQaCount: sections.flashQa?.qaCount || 0,
+      capsuleCount: sections.capsules?.capsuleCount || 0,
       quizTodayCount: sections.quiz?.todayCount || 0,
       quizCorrectRate: sections.quiz?.todayCorrectRate || 0,
       taskCompletedCount: sections.tasks?.completedCount || 0,
       taskPendingCount: sections.tasks?.pendingCount || 0,
+      ideaDraftCount: sections.ideas?.draftCount || 0,
     };
   }
 
@@ -385,7 +640,9 @@ class DailySummaryService {
    */
   _persistHtml(dateLabel, htmlContent) {
     const paths = this._summaryPaths(dateLabel);
-    const htmlFile = path.join(paths.baseDir, `${dateLabel}.html`);
+    const weekday = getDayOfWeekChinese(dateLabel);
+    const readableName = `${dateLabel}-${weekday}-日终总结`;
+    const htmlFile = path.join(paths.baseDir, `${readableName}.html`);
     ensureDir(paths.baseDir);
     fs.writeFileSync(htmlFile, htmlContent, "utf8");
     return htmlFile;
@@ -398,8 +655,11 @@ class DailySummaryService {
     const t = sections.timeline || {};
     const d = sections.diary || {};
     const f = sections.flash || {};
+    const fqa = sections.flashQa || {};
+    const caps = sections.capsules || {};
     const q = sections.quiz || {};
     const tasks = sections.tasks || {};
+    const ideas = sections.ideas || {};
 
     const dateObj = this._parseDate(date);
     const dateLabel = dateObj
@@ -418,14 +678,17 @@ class DailySummaryService {
       "{{quizRate}}": String(stats.quizCorrectRate || 0),
       "{{timelineCount}}": String(stats.eventCount || 0),
       "{{flashTodayCount}}": String(stats.flashTodayCount || 0),
+      "{{flashQaCount}}": String(stats.flashQaCount || 0),
+      "{{capsuleCount}}": String(stats.capsuleCount || 0),
       "{{diaryCount}}": String(stats.diaryEntryCount || 0),
+      "{{ideaDraftCount}}": String(stats.ideaDraftCount || 0),
     };
 
     for (const [key, value] of Object.entries(replacements)) {
       html = html.split(key).join(value);
     }
 
-    // Timeline events section
+    // 1. Timeline events section
     html = this._renderSectionBlock(html, "timelineEvents", () => {
       if (!t.events || !t.events.length) return "";
       return t.events.slice(0, 20).map((e) => ({
@@ -436,7 +699,35 @@ class DailySummaryService {
       }));
     });
 
-    // Flash items section
+    // 2. Flash Q&A section — flatten exchanges into HTML to avoid nested template issues
+    html = this._renderSectionBlock(html, "flashQaSection", () => {
+      if (!fqa.qaItems || !fqa.qaItems.length) return "";
+      return {
+        qaItems: fqa.qaItems.slice(0, 10).map((qa) => {
+          const exchangesHtml = (qa.exchanges || []).map((ex) =>
+            `<div class="flash-qa-q">🤔 ${this._escapeHtml(ex.q || "")}</div><div class="flash-qa-a">${this._escapeHtml(ex.a || "")}</div>`
+          ).join("");
+          return {
+            original: this._escapeHtml(qa.original || ""),
+            exchangesHtml: exchangesHtml,
+          };
+        }),
+      };
+    }, "qaItems");
+
+    // 3. Memory capsules section
+    html = this._renderSectionBlock(html, "capsuleSection", () => {
+      if (!caps.capsules || !caps.capsules.length) return "";
+      return {
+        capsules: caps.capsules.slice(0, 8).map((c) => ({
+          theme: this._escapeHtml(c.theme || "未命名胶囊"),
+          summary: this._escapeHtml(c.summary || ""),
+          linkedCount: String(c.linkedCount || 1),
+        })),
+      };
+    }, "capsules");
+
+    // 4. Flash items section
     html = this._renderSectionBlock(html, "flashItems", () => {
       if (!f.todayItems || !f.todayItems.length) return "";
       return f.todayItems.slice(0, 15).map((item) => ({
@@ -446,10 +737,10 @@ class DailySummaryService {
       }));
     });
 
-    // Task section
+    // 5. Task section
     html = this._renderTaskSection(html, tasks);
 
-    // Diary section
+    // 6. Diary section
     html = this._renderSectionBlock(html, "diarySection", () => {
       if (!d.entries || !d.entries.length) return "";
       return d.entries.slice(0, 10).map((entry) => ({
@@ -458,18 +749,32 @@ class DailySummaryService {
       }));
     });
 
-    // Quiz section
+    // 7. Quiz section
     html = this._renderQuizSection(html, q);
 
-    // Tomorrow plan
+    // 8. Idea refinement section
+    html = this._renderSectionBlock(html, "ideaSection", () => {
+      if (!ideas.drafts || !ideas.drafts.length) return "";
+      return {
+        drafts: ideas.drafts.slice(0, 6).map((idea) => ({
+          title: this._escapeHtml(idea.title || "未命名构思"),
+          lastRefined: idea.lastRefined ? `最近完善：${idea.lastRefined}` : "",
+        })),
+      };
+    }, "drafts");
+
+    // 9. Tomorrow plan
     html = this._renderTomorrowPlan(html, data);
 
     return html;
   }
 
-  _renderSectionBlock(html, sectionName, buildItems) {
+  _renderSectionBlock(html, sectionName, buildItems, listName = "items") {
     const items = buildItems();
-    const hasItems = items && items.length > 0;
+    // Determine if the result is an object with a named list (e.g. { qaItems: [...] }) or a plain array
+    const isNestedObject = items && typeof items === "object" && !Array.isArray(items);
+    const itemList = isNestedObject ? (items[listName] || []) : (Array.isArray(items) ? items : []);
+    const hasItems = itemList.length > 0;
 
     // Replace the {{#sectionName}}...{{/sectionName}} block
     const openTag = `{{#${sectionName}}}`;
@@ -483,11 +788,11 @@ class DailySummaryService {
     const block = html.slice(openIdx + openTag.length, closeIdx);
     const after = html.slice(closeIdx + closeTag.length);
 
-    // Extract the {{#items}}...{{/items}} sub-block
-    const itemsOpenTag = "{{#items}}";
-    const itemsCloseTag = "{{/items}}";
-    const emptyOpenTag = "{{^items}}";
-    const emptyCloseTag = "{{/items}}";
+    // Extract the named list sub-block: {{#listName}}...{{/listName}}
+    const itemsOpenTag = `{{#${listName}}}`;
+    const itemsCloseTag = `{{/${listName}}}`;
+    const emptyOpenTag = `{{^${listName}}}`;
+    const emptyCloseTag = `{{/${listName}}}`;
 
     const itemsOpenIdx = block.indexOf(itemsOpenTag);
     const itemsCloseIdx = block.lastIndexOf(itemsCloseTag);
@@ -496,7 +801,7 @@ class DailySummaryService {
     let renderedBlock;
     if (hasItems && itemsOpenIdx !== -1 && itemsCloseIdx !== -1) {
       const itemTemplate = block.slice(itemsOpenIdx + itemsOpenTag.length, block.indexOf(itemsCloseTag, itemsOpenIdx));
-      const renderedItems = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
+      const renderedItems = itemList.map((item) => this._renderItem(itemTemplate, item)).join("\n");
       renderedBlock = block.slice(0, itemsOpenIdx) + renderedItems + block.slice(itemsCloseIdx + itemsCloseTag.length);
 
       // Remove the empty block if present
@@ -689,35 +994,65 @@ class DailySummaryService {
     const t = sections.timeline || {};
     const d = sections.diary || {};
     const f = sections.flash || {};
+    const fqa = sections.flashQa || {};
+    const caps = sections.capsules || {};
     const q = sections.quiz || {};
     const tasks = sections.tasks || {};
+    const ideas = sections.ideas || {};
 
     const lines = [
       "---",
       `type: daily-summary`,
       `date: ${date}`,
       `generated: ${data.generatedAt}`,
+      `screenshot: ${data._screenshotPath || ""}`,
       "---",
       "",
       `# 📋 日终总结 · ${date}`,
       "",
-      "## ⏱ 时间轨迹",
-      "",
     ];
+
+    // Screenshot embed (if attached later)
+    if (data._screenshotPath) {
+      lines.push(`![日终总结截图](${data._screenshotPath})`, "");
+    }
+
+    lines.push("## ⏱ 时间轨迹", "");
 
     if (t.exists && t.events && t.events.length > 0) {
       for (const event of t.events.slice(0, 15)) {
         const startTime = formatEventTime(event.startAt);
         const endTime = formatEventTime(event.endAt);
         const title = event.title || event.eventNodeId || "—";
-        const dur = event._durationMinutes ? ` (${event._durationMinutes}min)` : "";
+        const dur = event._durationMinutes ? ` (${event._durationMinutes}分钟)` : "";
         lines.push(`- ${startTime} - ${endTime}  ${title}${dur}`);
       }
       if (t.totalMinutes > 0) {
-        lines.push(`- **总计追踪时间：${Math.round(t.totalMinutes / 60)}h ${t.totalMinutes % 60}min**`);
+        lines.push(`- **总计追踪时间：${Math.round(t.totalMinutes / 60)}h ${t.totalMinutes % 60}分钟**`);
       }
     } else {
       lines.push("（今日无时间轴记录）");
+    }
+
+    // Memory capsules
+    if (caps.capsuleCount > 0 && caps.capsules) {
+      lines.push("", "## 💊 记忆胶囊", "");
+      for (const capsule of caps.capsules.slice(0, 5)) {
+        lines.push(`- **${capsule.theme}**：${capsule.summary}（${capsule.linkedCount} 条关联闪存）`);
+      }
+    }
+
+    // Flash Q&A
+    if (fqa.qaCount > 0 && fqa.qaItems) {
+      lines.push("", "## 💬 记忆碎片问答", "");
+      for (const qa of fqa.qaItems.slice(0, 8)) {
+        lines.push(`- 💡 ${qa.original}`);
+        for (const ex of qa.exchanges) {
+          lines.push(`  - 🤔 ${ex.q}`);
+          lines.push(`  - ${ex.a}`);
+        }
+        lines.push("");
+      }
     }
 
     lines.push("", "## 💡 今日灵感", "");
@@ -767,6 +1102,18 @@ class DailySummaryService {
       lines.push("（今日无学习记录）");
     }
 
+    // Idea refinement section
+    if (ideas.draftCount > 0 && ideas.drafts) {
+      lines.push("", "## 🏗️ 大构思完善", "");
+      for (const idea of ideas.drafts.slice(0, 6)) {
+        const refinedInfo = idea.lastRefined ? `（最近完善：${idea.lastRefined}）` : "";
+        lines.push(`- 📄 [[${idea.title}]] ${refinedInfo}`);
+      }
+    } else {
+      lines.push("", "## 🏗️ 大构思完善", "");
+      lines.push("（暂无构思草稿 · 将你的构思放入 `大构思/` 目录即可开始）");
+    }
+
     lines.push("", "## 🔮 明天计划", "", "（待补充）", "");
     lines.push("---");
     lines.push(`🤖 由 Cyberboss v0.2.0 自动生成 · ${date}`);
@@ -779,15 +1126,18 @@ class DailySummaryService {
   _summaryPaths(dateLabel) {
     // Primary: Obsidian vault (if configured)
     const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    const weekday = getDayOfWeekChinese(dateLabel);
+    const readableName = `${dateLabel}-${weekday}-日终总结`;
+
     const baseDir = obsidianDir
       ? path.join(obsidianDir, "每日总结", dateLabel.slice(0, 4), dateLabel.slice(5, 7))
       : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "daily-summaries", dateLabel.slice(0, 4), dateLabel.slice(5, 7));
 
     return {
       baseDir,
-      draftFile: path.join(baseDir, `${dateLabel}_草稿.md`),
-      finalFile: path.join(baseDir, `${dateLabel}.md`),
-      dataFile: path.join(baseDir, `${dateLabel}_data.json`),
+      draftFile: path.join(baseDir, `${readableName}_草稿.md`),
+      finalFile: path.join(baseDir, `${readableName}.md`),
+      dataFile: path.join(baseDir, `${readableName}_data.json`),
     };
   }
 
@@ -810,6 +1160,66 @@ class DailySummaryService {
     }
 
     return savedPaths;
+  }
+
+  /**
+   * Attach a screenshot image reference to an existing daily summary MD file.
+   * Inserts `![日终总结截图](screenshotPath)` after the title line.
+   */
+  attachScreenshot({ date = "", screenshotPath = "" } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const normalizedPath = String(screenshotPath || "").trim();
+    if (!normalizedPath) {
+      throw new Error("screenshotPath is required.");
+    }
+
+    const paths = this._summaryPaths(dateLabel);
+    const targetFile = fs.existsSync(paths.finalFile) ? paths.finalFile : paths.draftFile;
+
+    if (!fs.existsSync(targetFile)) {
+      throw new Error(`No summary found for ${dateLabel}. Generate it first.`);
+    }
+
+    const originalContent = fs.readFileSync(targetFile, "utf8");
+
+    // Check if a screenshot is already embedded
+    if (originalContent.includes("![日终总结截图]")) {
+      // Replace existing screenshot reference
+      const updated = originalContent.replace(
+        /!\[日终总结截图\]\([^)]+\)/,
+        `![日终总结截图](${normalizedPath})`
+      );
+      fs.writeFileSync(targetFile, updated, "utf8");
+    } else {
+      // Insert after the title line (# 📋 日终总结 · YYYY-MM-DD)
+      const titleRegex = /^(# 📋 日终总结 · .+)$/m;
+      const match = titleRegex.exec(originalContent);
+      if (match) {
+        const insertPos = match.index + match[0].length;
+        const before = originalContent.slice(0, insertPos);
+        const after = originalContent.slice(insertPos);
+        const updated = `${before}\n\n![日终总结截图](${normalizedPath})\n${after}`;
+        fs.writeFileSync(targetFile, updated, "utf8");
+      } else {
+        // Fallback: prepend after frontmatter
+        const updated = originalContent.replace(
+          /(^---\n[\s\S]*?\n---\n)/,
+          `$1\n![日终总结截图](${normalizedPath})\n`
+        );
+        fs.writeFileSync(targetFile, updated, "utf8");
+      }
+    }
+
+    // Also update the data JSON
+    if (fs.existsSync(paths.dataFile)) {
+      try {
+        const dataJson = JSON.parse(fs.readFileSync(paths.dataFile, "utf8"));
+        dataJson._screenshotPath = normalizedPath;
+        fs.writeFileSync(paths.dataFile, JSON.stringify(dataJson, null, 2), "utf8");
+      } catch { /* ignore */ }
+    }
+
+    return { ok: true, date: dateLabel, filePath: targetFile, screenshotPath: normalizedPath };
   }
 
   /**
@@ -889,6 +1299,15 @@ function formatEventTime(isoStr) {
   } catch {
     return "??:??";
   }
+}
+
+function getDayOfWeekChinese(dateStr) {
+  const parts = String(dateStr || "").split("-");
+  if (parts.length !== 3) return "";
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (Number.isNaN(d.getTime())) return "";
+  const days = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  return days[d.getDay()];
 }
 
 function ensureDir(dir) {

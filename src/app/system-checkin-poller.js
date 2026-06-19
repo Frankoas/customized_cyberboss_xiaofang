@@ -1,10 +1,13 @@
 const crypto = require("crypto");
+const os = require("os");
+const path = require("path");
 
 const { resolveSelectedAccount } = require("../adapters/channel/weixin/account-store");
 const { SessionStore } = require("../adapters/runtime/codex/session-store");
 const { CheckinConfigStore, resolveDefaultCheckinRange } = require("../core/checkin-config-store");
 const { resolvePreferredSenderId, resolvePreferredWorkspaceRoot } = require("../core/default-targets");
 const { SystemMessageQueueStore } = require("../core/system-message-queue-store");
+const { DailySummaryScheduler } = require("../services/daily-summary-scheduler");
 
 const INTERNAL_CHECKIN_TRIGGER_TEMPLATE = "%USER% comes to mind again.";
 
@@ -107,6 +110,17 @@ function formatRangeMinutes(range) {
 
 function buildCheckinTrigger(config) {
   const userName = normalizeText(config?.userName) || "the user";
+
+  // Check if we're in the daily summary window (20:00-23:59)
+  const stateDir = typeof config?.stateDir === "string" ? config.stateDir : path.join(os.homedir(), ".cyberboss");
+  const dailyScheduler = new DailySummaryScheduler({ config: { stateDir } });
+  const summaryCheck = dailyScheduler.shouldGenerateNow();
+
+  if (summaryCheck.shouldGenerate) {
+    console.log(`[cyberboss] checkin trigger: daily summary window (${summaryCheck.reason})`);
+    return dailyScheduler.buildSummaryTrigger();
+  }
+
   return INTERNAL_CHECKIN_TRIGGER_TEMPLATE.replace("%USER%", userName);
 }
 
