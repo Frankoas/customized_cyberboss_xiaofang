@@ -21,7 +21,11 @@ function loadEnv() {
   const candidates = [
     path.join(process.cwd(), ".env"),
     path.join(os.homedir(), ".cyberboss", ".env"),
-  ];
+    // Also check CYBERBOSS_HOME (the project directory) — needed when
+    // the MCP server is spawned by Claude Code from a workspace root
+    // that differs from the project root.
+    process.env.CYBERBOSS_HOME ? path.join(process.env.CYBERBOSS_HOME, ".env") : "",
+  ].filter(Boolean);
   for (const envPath of candidates) {
     if (!fs.existsSync(envPath)) {
       continue;
@@ -113,8 +117,8 @@ function installRuntimeErrorHooks() {
 }
 
 async function main() {
-  loadEnv();
   ensureRuntimeEnv();
+  loadEnv();
   installRuntimeErrorHooks();
   const argv = process.argv.slice(2);
   const config = readConfig();
