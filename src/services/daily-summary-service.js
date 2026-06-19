@@ -618,10 +618,9 @@ class DailySummaryService {
    * The template reuses the paper-texture design system from timeline-for-agent.
    */
   buildHtml(data) {
-    // Resolve template relative to the cyberboss package root (../../templates/)
-    const templatePath = path.join(
-      __dirname, "..", "..", "templates", "daily-summary.html"
-    );
+    // Resolve template relative to CYBERBOSS_HOME (set at startup, more reliable than __dirname)
+    const homeDir = process.env.CYBERBOSS_HOME || path.join(__dirname, "..", "..");
+    const templatePath = path.join(homeDir, "templates", "daily-summary.html");
 
     let template;
     if (fs.existsSync(templatePath)) {
