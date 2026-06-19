@@ -57,10 +57,12 @@ Skip flash capture for:
 
 ### How to respond after capture
 
-After saving a flash item, give the briefest possible confirmation:
+After saving a flash item, give the briefest possible confirmation and STOP:
 - `💡 已存。{2-3个标签}`
 - Do NOT repeat the full content back.
-- Do NOT ask "要不要深入聊聊" — save that for the review session.
+- Do NOT ask "要不要深入聊聊" or any follow-up question — save that for the review session.
+- Do NOT continue the conversation about the flash topic. The capture is the end.
+- Move on to the user's next message or wait. The flash is captured; your job here is done.
 
 ### Auto-tagging
 

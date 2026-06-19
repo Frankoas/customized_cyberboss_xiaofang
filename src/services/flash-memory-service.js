@@ -15,7 +15,7 @@ class FlashMemoryService {
   // ---- core CRUD ----
 
   /**
-   * Capture a flash memory item into inbox.
+   * Capture a flash memory item into inbox as an Obsidian-compatible .md file.
    */
   capture({ text, category = "idea", tags = [], sourceType = "wechat", priority = "low" } = {}) {
     const rawText = String(text || "").trim();
@@ -26,7 +26,6 @@ class FlashMemoryService {
     const now = new Date();
     const dateLabel = formatDate(now);
     const id = generateFlashId(dateLabel, this.baseDir);
-    const cleanedText = rawText;
     const safeCategory = CATEGORIES.includes(category) ? category : "idea";
     const safeTags = normalizeTags(tags);
 
@@ -34,7 +33,7 @@ class FlashMemoryService {
       id,
       sourceType,
       rawText,
-      cleanedText,
+      cleanedText: rawText,
       category: safeCategory,
       tags: safeTags,
       status: "inbox",
@@ -47,8 +46,8 @@ class FlashMemoryService {
     };
 
     ensureDir(this.inboxDir());
-    const filePath = path.join(this.inboxDir(), `${id}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(item, null, 2), "utf8");
+    const filePath = path.join(this.inboxDir(), `${id}.md`);
+    fs.writeFileSync(filePath, serializeFlashMd(item), "utf8");
 
     this._bumpIndex({ inboxDelta: 1 });
     return item;
@@ -95,15 +94,16 @@ class FlashMemoryService {
    * Update a single flash item.
    */
   update({ id, updates = {} } = {}) {
-    const item = this._findItem(id);
-    if (!item) {
+    const located = this._locateItem(id);
+    if (!located) {
       throw new Error(`Flash item not found: ${id}`);
     }
 
-    const allowedFields = ["category", "tags", "status", "priority", "cleanedText", "relatedFlashIds", "mergedToIdeaId"];
+    const item = located.item;
     const oldStatus = item.status;
     let newStatus = oldStatus;
 
+    const allowedFields = ["category", "tags", "status", "priority", "cleanedText", "relatedFlashIds", "mergedToIdeaId"];
     for (const [key, value] of Object.entries(updates)) {
       if (!allowedFields.includes(key)) continue;
 
@@ -137,10 +137,7 @@ class FlashMemoryService {
     if (newStatus !== oldStatus) {
       this._moveItemFile(id, oldStatus, newStatus, item);
     } else {
-      const filePath = this._itemFilePath(id, oldStatus);
-      if (filePath) {
-        fs.writeFileSync(filePath, JSON.stringify(item, null, 2), "utf8");
-      }
+      fs.writeFileSync(located.filePath, serializeFlashMd(item), "utf8");
     }
 
     this._rebuildIndex();
@@ -253,9 +250,11 @@ class FlashMemoryService {
     const items = [];
     try {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+        if (!entry.isFile()) continue;
+        if (!entry.name.endsWith(".md")) continue;
         try {
-          const data = JSON.parse(fs.readFileSync(path.join(dir, entry.name), "utf8"));
+          const raw = fs.readFileSync(path.join(dir, entry.name), "utf8");
+          const data = parseFlashMd(raw);
           if (data && data.id) items.push(data);
         } catch { /* skip corrupt files */ }
       }
@@ -277,26 +276,34 @@ class FlashMemoryService {
   }
 
   _findItem(id) {
+    const located = this._locateItem(id);
+    return located ? located.item : null;
+  }
+
+  _locateItem(id) {
     for (const status of STATUSES) {
       const filePath = this._itemFilePath(id, status);
       if (filePath && fs.existsSync(filePath)) {
         try {
-          return JSON.parse(fs.readFileSync(filePath, "utf8"));
-        } catch { return null; }
+          const raw = fs.readFileSync(filePath, "utf8");
+          const item = parseFlashMd(raw);
+          if (item && item.id === id) {
+            return { item, filePath, status };
+          }
+        } catch { /* skip */ }
       }
     }
     return null;
   }
 
   _itemFilePath(id, status) {
-    if (status === "inbox") return path.join(this.inboxDir(), `${id}.json`);
-    if (status === "archived") return path.join(this.archivedDir(), `${id}.json`);
-    if (status === "merged") return path.join(this.mergedDir(), `${id}.json`);
+    if (status === "inbox") return path.join(this.inboxDir(), `${id}.md`);
+    if (status === "archived") return path.join(this.archivedDir(), `${id}.md`);
+    if (status === "merged") return path.join(this.mergedDir(), `${id}.md`);
     if (status === "categorized") {
-      // Need to search in all category subdirs
       const catDir = this.categorizedDir();
       for (const cat of CATEGORIES) {
-        const p = path.join(catDir, cat, `${id}.json`);
+        const p = path.join(catDir, cat, `${id}.md`);
         if (fs.existsSync(p)) return p;
       }
       return null;
@@ -305,31 +312,31 @@ class FlashMemoryService {
   }
 
   _moveItemFile(id, oldStatus, newStatus, item) {
-    const oldPath = this._itemFilePath(id, oldStatus);
+    const located = this._locateItem(id);
+    const oldPath = located ? located.filePath : null;
+
     if (!oldPath || !fs.existsSync(oldPath)) {
-      // Source doesn't exist, just write to new location
       const newPath = this._resolveNewPath(id, newStatus, item);
       ensureDir(path.dirname(newPath));
-      fs.writeFileSync(newPath, JSON.stringify(item, null, 2), "utf8");
+      fs.writeFileSync(newPath, serializeFlashMd(item), "utf8");
       return;
     }
 
     const newPath = this._resolveNewPath(id, newStatus, item);
     ensureDir(path.dirname(newPath));
     fs.renameSync(oldPath, newPath);
-    // Rewrite with updated item (status field changed)
-    fs.writeFileSync(newPath, JSON.stringify(item, null, 2), "utf8");
+    fs.writeFileSync(newPath, serializeFlashMd(item), "utf8");
   }
 
   _resolveNewPath(id, status, item) {
-    if (status === "inbox") return path.join(this.inboxDir(), `${id}.json`);
-    if (status === "archived") return path.join(this.archivedDir(), `${id}.json`);
-    if (status === "merged") return path.join(this.mergedDir(), `${id}.json`);
+    if (status === "inbox") return path.join(this.inboxDir(), `${id}.md`);
+    if (status === "archived") return path.join(this.archivedDir(), `${id}.md`);
+    if (status === "merged") return path.join(this.mergedDir(), `${id}.md`);
     if (status === "categorized") {
       const cat = CATEGORIES.includes(item?.category) ? item.category : "idea";
-      return path.join(this.categorizedDir(), cat, `${id}.json`);
+      return path.join(this.categorizedDir(), cat, `${id}.md`);
     }
-    return path.join(this.inboxDir(), `${id}.json`);
+    return path.join(this.inboxDir(), `${id}.md`);
   }
 
   _readIndex() {
@@ -382,25 +389,139 @@ class FlashMemoryService {
   }
 }
 
+// ---- Markdown serialization ----
+
+const FRONTMATTER_DELIM = "---";
+
+function serializeFlashMd(item) {
+  const frontmatter = {
+    id: item.id,
+    type: "flash",
+    category: item.category,
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    status: item.status,
+    priority: item.priority || "low",
+    created: item.createdAt || "",
+    source: item.sourceType || "wechat",
+  };
+
+  const yaml = [
+    `${FRONTMATTER_DELIM}`,
+    `id: ${frontmatter.id}`,
+    `type: ${frontmatter.type}`,
+    `category: ${frontmatter.category}`,
+    `tags: [${frontmatter.tags.join(", ")}]`,
+    `status: ${frontmatter.status}`,
+    `priority: ${frontmatter.priority}`,
+    `created: "${frontmatter.created}"`,
+    `source: ${frontmatter.source}`,
+  ];
+
+  // Optional fields
+  if (item.reviewedAt) yaml.push(`reviewed: "${item.reviewedAt}"`);
+  if (item.archivedAt) yaml.push(`archived: "${item.archivedAt}"`);
+  if (item.mergedToIdeaId) yaml.push(`merged_to: ${item.mergedToIdeaId}`);
+  if (Array.isArray(item.relatedFlashIds) && item.relatedFlashIds.length) {
+    yaml.push(`related: [${item.relatedFlashIds.join(", ")}]`);
+  }
+
+  yaml.push(`${FRONTMATTER_DELIM}`);
+  yaml.push("");
+  yaml.push(`# ${item.rawText}`);
+  yaml.push("");
+
+  return yaml.join("\n") + "\n";
+}
+
+function parseFlashMd(raw) {
+  const normalized = String(raw || "").trim();
+  if (!normalized.startsWith(FRONTMATTER_DELIM)) {
+    return null;
+  }
+
+  const secondDelim = normalized.indexOf(FRONTMATTER_DELIM, 3);
+  if (secondDelim === -1) {
+    return null;
+  }
+
+  const fmBlock = normalized.slice(3, secondDelim).trim();
+  const bodyBlock = normalized.slice(secondDelim + 3).trim();
+
+  // Simple YAML key: value parser (good enough for our fixed schema)
+  const fm = {};
+  const lines = fmBlock.split("\n");
+  for (const line of lines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim();
+    const rawValue = line.slice(colonIdx + 1).trim();
+    if (!key || !rawValue) continue;
+
+    if (key === "tags" || key === "related") {
+      fm[key] = parseYamlArray(rawValue);
+    } else {
+      fm[key] = stripYamlQuotes(rawValue);
+    }
+  }
+
+  // Extract title from body (strip leading # heading)
+  let body = bodyBlock;
+  if (body.startsWith("# ")) {
+    const newlineIdx = body.indexOf("\n");
+    body = newlineIdx === -1 ? "" : body.slice(newlineIdx + 1).trim();
+  }
+
+  return {
+    id: fm.id || "",
+    sourceType: fm.source || "wechat",
+    rawText: fm.id ? (body || fm.id) : "",
+    cleanedText: body || "",
+    category: fm.category || "idea",
+    tags: Array.isArray(fm.tags) ? fm.tags : [],
+    status: fm.status || "inbox",
+    priority: fm.priority || "low",
+    relatedFlashIds: Array.isArray(fm.related) ? fm.related : [],
+    mergedToIdeaId: fm.merged_to || null,
+    createdAt: fm.created || "",
+    reviewedAt: fm.reviewed || null,
+    archivedAt: fm.archived || null,
+  };
+}
+
+function parseYamlArray(value) {
+  // Support both [a, b, c] and a, b, c
+  let normalized = value.trim();
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    normalized = normalized.slice(1, -1);
+  }
+  return normalized
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function stripYamlQuotes(value) {
+  let v = value.trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1);
+  }
+  return v;
+}
+
 // ---- helpers ----
 
 function resolveFlashMemoryDir(config) {
-  // Primary: explicit env var for Obsidian vault path
   const envDir = process.env.CYBERBOSS_FLASH_MEMORY_DIR;
   if (envDir && envDir.trim()) {
     return path.resolve(envDir.trim());
   }
-  // Fallback: inside stateDir
   const stateDir = config?.stateDir || path.join(os.homedir(), ".cyberboss");
   return path.join(stateDir, "flash-memory");
 }
 
-let flashIdCounter = 0;
-
 function generateFlashId(dateLabel, baseDir) {
   const inboxDir = path.join(baseDir, "inbox");
   ensureDir(inboxDir);
-  // Count existing files for today
   const existing = fs.existsSync(inboxDir)
     ? fs.readdirSync(inboxDir).filter((name) => name.startsWith(`fm_${dateLabel}`)).length
     : 0;
