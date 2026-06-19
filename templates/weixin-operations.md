@@ -57,12 +57,26 @@ Skip flash capture for:
 
 ### How to respond after capture
 
-After saving a flash item, give the briefest possible confirmation and STOP:
-- `💡 已存。{2-3个标签}`
-- Do NOT repeat the full content back.
-- Do NOT ask "要不要深入聊聊" or any follow-up question — save that for the review session.
-- Do NOT continue the conversation about the flash topic. The capture is the end.
-- Move on to the user's next message or wait. The flash is captured; your job here is done.
+After saving a flash item, you may ask at most **2 short questions** to anchor the idea.
+Pick from these angles — whichever fits the flash best:
+- **Why**: "为什么想做这个？" / "它解决什么问题？"
+- **How**: "大概怎么做？有想用的工具吗？"  
+- **Who**: "跟谁做？还是自己搞？"
+- **When**: "大概什么时候想弄？"
+
+Rules:
+- Max 2 questions. Never more.
+- One question at a time. Wait for the answer before asking the second.
+- After each answer, call `cyberboss_flash_memory` update with the id and `cleanedText` appending the Q&A. Format:
+  ```
+  原始闪存内容
+  
+  Q: {your question}
+  A: {user's answer}
+  ```
+- After the second answer is saved, STOP. Do not ask more.
+- The goal is future-linking: the Q&A helps find connections between flashes later.
+- If the user gives a short answer or seems not in the mood, skip the second question.
 
 ### Auto-tagging
 
