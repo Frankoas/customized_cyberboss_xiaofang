@@ -16,42 +16,34 @@
 
 ### 1.1 创建 Vault
 
-在 Obsidian 中新建一个 Vault，路径建议：
+Vault 已创建，信息如下：
 
 ```
-D:\Obsidian\CyberbossVault
+Vault name: Cyberboss_fang
+Location:   D:\Cyberboss\cyberbossVault\cyberboss_fang
 ```
 
-> 💡 这个 vault 是 Cyberboss 的"外部大脑"，Cyberboss 会在这里读写闪存、知识库、每日总结等。
-
-操作：
-1. 打开 Obsidian → 点击左下角 "Open another vault" → "Create new vault"
-2. Vault name: `CyberbossVault`
-3. Location: `D:\Obsidian\CyberbossVault`
-4. 点击 Create
-
-- [ ] Vault 已创建
+- [x] Vault 已创建 ✅（小方完成）
 
 ---
 
-## Step 2：创建目录结构
+## Step 2：创建目录结构 ✅（Cyberboss 完成）
 
-在 `CyberbossVault` 根目录下创建以下文件夹：
+已在 vault 中创建完整目录树：
 
 ```
-CyberbossVault/
-├── 闪存记忆/              ← 闪存胶囊仓库（Phase 1）
-│   ├── inbox/             ← 刚捕获的，待整理
-│   ├── categorized/       ← 已分类的
-│   │   ├── dev/           ← 开发相关
-│   │   ├── life/          ← 生活相关
-│   │   ├── idea/          ← 商业/产品想法
-│   │   ├── todo/          ← 待办事项
-│   │   └── learning/      ← 学习相关
-│   ├── archived/          ← 已归档
-│   └── merged/            ← 已合并到大构思
-│
-├── 知识库/                ← 碎片化记忆知识库（Phase 2）
+Cyberboss_fang/
+├── 闪存记忆/
+│   ├── inbox/
+│   ├── categorized/
+│   │   ├── dev/
+│   │   ├── life/
+│   │   ├── idea/
+│   │   ├── todo/
+│   │   └── learning/
+│   ├── archived/
+│   └── merged/
+├── 知识库/
 │   ├── 计算机科学/
 │   ├── 历史/
 │   ├── 科学/
@@ -59,137 +51,67 @@ CyberbossVault/
 │   ├── 经济学/
 │   ├── 心理学/
 │   └── 概率论与统计/
-│
-├── 每日总结/              ← 日/月/年总结存档（Phase 3）
-│   ├── 2026/
-│   │   ├── 06/
-│   │   └── 07/
+├── 每日总结/
+│   ├── 2026/06/
+│   ├── 2026/07/
 │   └── 月度总结/
-│
-├── 大构思/                ← 大构思草稿（Phase 4）
-│   ├── drafts/            ← 你的原始草稿
-│   ├── refined/           ← AI 完善后的版本
-│   └── sessions/          ← 完善对话记录
-│
-└── CYBERBOSS_PROMPTS/     ← 提示词协同调整（Phase 全）
+├── 大构思/
+│   ├── drafts/
+│   ├── refined/
+│   └── sessions/
+└── CYBERBOSS_PROMPTS/
     ├── 每日总结/
     ├── 闪存整理/
     ├── 大构思完善/
     └── 通用/
 ```
 
-操作：
-1. 在 Obsidian 左侧文件列表中，逐个右键 → New folder
-2. 先建第一层（5个文件夹），再进去建子文件夹
-
-- [ ] 所有文件夹已创建
+- [x] 所有文件夹已创建 ✅
 
 ---
 
-## Step 3：配置环境变量
+## Step 3：配置环境变量 ✅（Cyberboss 完成）
 
-在 `D:\Cyberboss\cyberboss\.env` 文件中添加：
+已在 `cyberboss/.env` 中添加：
 
 ```env
-# Obsidian Vault 路径
-CYBERBOSS_OBSIDIAN_VAULT=D:/Obsidian/CyberbossVault
-
-# 闪存记忆存储位置（指向 Obsidian vault 中的闪存记忆文件夹）
-CYBERBOSS_FLASH_MEMORY_DIR=D:/Obsidian/CyberbossVault/闪存记忆
-
-# 知识库存储位置（Phase 2 启用）
-# CYBERBOSS_KNOWLEDGE_BASE_DIR=D:/Obsidian/CyberbossVault/知识库
-
-# 每日总结存储位置（Phase 3 启用）
-# CYBERBOSS_DAILY_SUMMARY_DIR=D:/Obsidian/CyberbossVault/每日总结
-
-# 大构思存储位置（Phase 4 启用）
-# CYBERBOSS_IDEA_DIR=D:/Obsidian/CyberbossVault/大构思
+# Obsidian Vault（v0.2.0 新增）
+CYBERBOSS_OBSIDIAN_VAULT=D:/Cyberboss/cyberbossVault/cyberboss_fang
+CYBERBOSS_FLASH_MEMORY_DIR=D:/Cyberboss/cyberbossVault/cyberboss_fang/闪存记忆
+# CYBERBOSS_KNOWLEDGE_BASE_DIR（Phase 2 启用）
+# CYBERBOSS_DAILY_SUMMARY_DIR（Phase 3 启用）
+# CYBERBOSS_IDEA_DIR（Phase 4 启用）
 ```
 
-> ⚠️ 如果 `.env` 文件不存在，新建一个。注意路径用正斜杠 `/`。
-
-操作：
-1. 打开 `D:\Cyberboss\cyberboss\.env`
-2. 添加以上内容
-3. 保存
-
-- [ ] 环境变量已配置
+- [x] 环境变量已配置 ✅
 
 ---
 
-## Step 4：创建 Prompt 模板文件
+## Step 4：创建 Prompt 模板文件 ✅（Cyberboss 完成）
 
-在 `CYBERBOSS_PROMPTS/` 文件夹下创建以下文件，内容暂时留空或复制 Cyberboss 项目中的 `docs/prompts/` 下对应文件：
-
-| 文件 | 路径 | 说明 |
+| 文件 | 路径 | 状态 |
 |------|------|------|
-| 每日总结 prompt | `CYBERBOSS_PROMPTS/每日总结/daily-summary.md` | 从 `cyberboss/docs/prompts/daily-summary-prompt.md` 复制 |
-| 闪存整理 prompt | `CYBERBOSS_PROMPTS/闪存整理/flash-consolidation.md` | 待补充 |
-| 大构思完善 prompt | `CYBERBOSS_PROMPTS/大构思完善/idea-refinement.md` | 从 `cyberboss/docs/prompts/idea-refinement-prompt.md` 复制 |
-| 通用语气风格 | `CYBERBOSS_PROMPTS/通用/tone-and-style.md` | 可选 |
+| 每日总结 prompt | `CYBERBOSS_PROMPTS/每日总结/daily-summary.md` | ✅ 已复制 |
+| 闪存整理 prompt | `CYBERBOSS_PROMPTS/闪存整理/flash-consolidation.md` | ✅ 已复制（待小方补充内容） |
+| 大构思完善 prompt | `CYBERBOSS_PROMPTS/大构思完善/idea-refinement.md` | ✅ 已复制（待小方补充内容） |
+| 通用语气风格 | `CYBERBOSS_PROMPTS/通用/tone-and-style.md` | 🟡 待小方创建 |
 
-操作：
-1. 在 Obsidian 中右键对应文件夹 → New note
-2. 命名如 `daily-summary.md`
-3. 把 Cyberboss 项目 `docs/prompts/` 下的内容复制进去
-
-- [ ] Prompt 模板已创建
+- [x] Prompt 模板已创建 ✅
 
 ---
 
-## Step 5：创建知识库模板文件（Phase 2 准备）
+## Step 5：创建知识库模板文件 ✅（Cyberboss 完成）
 
-在 `知识库/` 文件夹下创建一个模板笔记 `_模板_问答题.md`：
+已创建两个模板笔记：
 
-```markdown
----
-type: quiz
-category: 
-tags: []
-difficulty: easy
-estimatedMinutes: 2
----
+| 文件 | 用途 |
+|------|------|
+| `知识库/_模板_问答题.md` | 带 frontmatter（type/ category/ tags/ difficulty/ estimatedMinutes） |
+| `知识库/_模板_冷知识.md` | 带 frontmatter（type/ category/ tags） |
 
-# 问题
+> 小方后续录入知识库时，复制模板文件即可，不用每次手写 frontmatter。
 
-
-# 答案关键词
-
-
-# 解析
-
-
-# 来源
-
-```
-
-再创建一个 `_模板_冷知识.md`：
-
-```markdown
----
-type: cold-fact
-category: 
-tags: []
----
-
-# 标题
-
-
-# 内容
-
-
-# 来源
-
-```
-
-> 后续录入知识库时，复制模板文件即可，不用每次都重写 frontmatter。
-
-操作：
-1. 在 `知识库/` 下新建这两个模板笔记
-2. 内容照上面复制
-
-- [ ] 知识库模板已创建
+- [x] 知识库模板已创建 ✅
 
 ---
 
@@ -242,17 +164,29 @@ git commit -m "init: Cyberboss vault skeleton"
 
 ## 完成清单
 
-| Step | 内容 | 状态 |
-|------|------|------|
-| 1 | 创建 CyberbossVault | ⬜ |
-| 2 | 创建目录结构（5 大类） | ⬜ |
-| 3 | 配置 .env 环境变量 | ⬜ |
-| 4 | 创建 Prompt 模板文件 | ⬜ |
-| 5 | 创建知识库模板 | ⬜ |
-| 6 | Git 初始化（可选） | ⬜ |
-| 7 | 手机端 Obsidian 同步 | ⬜ |
-| 8 | 验证闪存捕获功能 | ⬜ |
+| Step | 内容 | 负责人 | 状态 |
+|------|------|--------|------|
+| 1 | 创建 Cyberboss_fang vault | 小方 | ✅ |
+| 2 | 创建目录结构（5 大类 20+ 子目录） | Cyberboss | ✅ |
+| 3 | 配置 .env 环境变量 | Cyberboss | ✅ |
+| 4 | 创建 Prompt 模板文件 | Cyberboss | ✅ |
+| 5 | 创建知识库模板 | Cyberboss | ✅ |
+| 6 | Git 初始化 vault（可选） | 小方 | ⬜ |
+| 7 | 手机端 Obsidian 同步 | 小方 | ⬜ |
+| 8 | 验证闪存捕获功能 | 一起 | ⬜ |
 
 ---
 
-> 下一步：完成 Step 1-3 后告诉我，我这边验证 Cyberboss 能正确读写 Obsidian vault。
+### Vault 实际信息
+
+| 项目 | 值 |
+|------|-----|
+| Vault 名称 | `Cyberboss_fang` |
+| 路径 | `D:\Cyberboss\cyberbossVault\cyberboss_fang` |
+| 闪存记忆路径 | `D:\Cyberboss\cyberbossVault\cyberboss_fang\闪存记忆` |
+| 环境变量 | `CYBERBOSS_FLASH_MEMORY_DIR` → 闪存记忆/ |
+
+---
+
+> **你现在要做**：Step 7（手机端 Obsidian 同步）+ Step 8（验证）。Step 6 可选。
+> 验证方法：重启 Cyberboss → 微信发"话说我突然想到可以写个自动整理照片的脚本" → 应该回复 💡 已存 → 检查 Obsidian vault 的 `闪存记忆/inbox/` 下是否有新的 JSON 文件。
