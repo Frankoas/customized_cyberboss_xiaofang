@@ -695,7 +695,7 @@ class DailySummaryService {
         title: this._escapeHtml(e.title || e.eventNodeId || "—"),
         duration: e._durationMinutes ? String(e._durationMinutes) : null,
       }));
-    });
+    }, "events");
 
     // 2. Flash Q&A section — fully expanded
     html = this._renderSectionBlock(html, "flashQaSection", () => {
@@ -745,7 +745,7 @@ class DailySummaryService {
         time: entry.time || null,
         body: this._escapeHtml(entry.body.length > 500 ? entry.body.slice(0, 500) + "..." : entry.body),
       }));
-    });
+    }, "entries");
 
     // 7. Quiz section
     html = this._renderQuizSection(html, q);
@@ -831,72 +831,98 @@ class DailySummaryService {
   }
 
   _renderTaskSection(html, tasks) {
-    const sectionName = "taskSection";
-    const openTag = `{{#${sectionName}}}`;
-    const closeTag = `{{/${sectionName}}}`;
+    const hasCompleted = Array.isArray(tasks.completed) && tasks.completed.length > 0;
+    const hasPending = Array.isArray(tasks.pending) && tasks.pending.length > 0;
 
-    const openIdx = html.indexOf(openTag);
-    const closeIdx = html.indexOf(closeTag);
-    if (openIdx === -1 || closeIdx === -1) return html;
+    // Process {{#hasCompleted}}/{{^hasCompleted}} blocks
+    html = this._renderConditionalBlock(html, "hasCompleted", hasCompleted, (inner) => {
+      const listOpenTag = "{{#completed}}";
+      const listCloseTag = "{{/completed}}";
+      const listOpenIdx = inner.indexOf(listOpenTag);
+      const listCloseIdx = inner.lastIndexOf(listCloseTag);
+      if (listOpenIdx !== -1 && listCloseIdx !== -1) {
+        const itemTemplate = inner.slice(listOpenIdx + listOpenTag.length, inner.indexOf(listCloseTag, listOpenIdx));
+        const items = (tasks.completed || []).slice(0, 10).map((t) => ({
+          text: this._escapeHtml(t.text || t.id || ""),
+        }));
+        const rendered = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
+        return inner.slice(0, listOpenIdx) + rendered + inner.slice(listCloseIdx + listCloseTag.length);
+      }
+      return inner;
+    });
 
-    const before = html.slice(0, openIdx);
-    const block = html.slice(openIdx + openTag.length, closeIdx);
-    const after = html.slice(closeIdx + closeTag.length);
+    // Process {{#hasPending}}/{{^hasPending}} blocks
+    html = this._renderConditionalBlock(html, "hasPending", hasPending, (inner) => {
+      const listOpenTag = "{{#pending}}";
+      const listCloseTag = "{{/pending}}";
+      const listOpenIdx = inner.indexOf(listOpenTag);
+      const listCloseIdx = inner.lastIndexOf(listCloseTag);
+      if (listOpenIdx !== -1 && listCloseIdx !== -1) {
+        const itemTemplate = inner.slice(listOpenIdx + listOpenTag.length, inner.indexOf(listCloseTag, listOpenIdx));
+        const items = (tasks.pending || []).slice(0, 10).map((t) => ({
+          text: this._escapeHtml(t.text || t.id || ""),
+        }));
+        const rendered = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
+        return inner.slice(0, listOpenIdx) + rendered + inner.slice(listCloseIdx + listCloseTag.length);
+      }
+      return inner;
+    });
 
-    let rendered = block;
+    // Clean up remaining tags
+    html = html.replace(/\{\{[#^/](taskSection|hasCompleted|hasPending|completed|pending)\}\}/g, "");
 
-    // Handle {{#hasCompleted}}...{{/hasCompleted}}
-    rendered = this._renderConditionalList(rendered, "hasCompleted", "completed",
-      (tasks.completed || []).slice(0, 10).map((t) => ({ text: this._escapeHtml(t.text || t.id || "") })));
-    // Handle {{#hasPending}}...{{/hasPending}}
-    rendered = this._renderConditionalList(rendered, "hasPending", "pending",
-      (tasks.pending || []).slice(0, 10).map((t) => ({ text: this._escapeHtml(t.text || t.id || "") })));
-
-    rendered = rendered.replace(/\{\{[#^/]\w+\}\}/g, "");
-    rendered = rendered.replace(/\{\{\w+\}\}/g, "");
-
-    return before + rendered + after;
+    return html;
   }
 
-  _renderConditionalList(block, condName, listName, items) {
-    const openTag = `{{#${condName}}}`;
-    const closeTag = `{{/${condName}}}`;
-    const openIdx = block.indexOf(openTag);
-    const closeIdx = block.indexOf(closeTag);
+  /**
+   * Handle a paired {{#cond}}...{{/cond}} and {{^cond}}...{{/cond}} block.
+   * If condition is true: keep the {{#cond}} inner content, remove the {{^cond}} block.
+   * If condition is false: remove the {{#cond}} block, keep the {{^cond}} inner content.
+   */
+  _renderConditionalBlock(html, condName, isTruthy, renderPositiveFn) {
+    const posOpen = `{{#${condName}}}`;
+    const posClose = `{{/${condName}}}`;
+    const negOpen = `{{^${condName}}}`;
+    const negClose = `{{/${condName}}}`;
 
-    if (openIdx === -1 || closeIdx === -1) return block;
-
-    const inner = block.slice(openIdx + openTag.length, closeIdx);
-    const listOpenTag = `{{#${listName}}}`;
-    const listCloseTag = `{{/${listName}}}`;
-    const listOpenIdx = inner.indexOf(listOpenTag);
-    const listCloseIdx = inner.lastIndexOf(listCloseTag);
-
-    if (items.length > 0 && listOpenIdx !== -1 && listCloseIdx !== -1) {
-      const itemTemplate = inner.slice(listOpenIdx + listOpenTag.length, inner.indexOf(listCloseTag, listOpenIdx));
-      const renderedItems = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
-      return block.slice(0, openIdx) + inner.slice(0, listOpenIdx) + renderedItems + inner.slice(listCloseIdx + listCloseTag.length) + block.slice(closeIdx + closeTag.length);
+    if (isTruthy) {
+      // Keep positive block, remove negative block
+      const negOpenIdx = html.indexOf(negOpen);
+      if (negOpenIdx !== -1) {
+        const negCloseIdx = html.indexOf(negClose, negOpenIdx + negOpen.length);
+        if (negCloseIdx !== -1) {
+          html = html.slice(0, negOpenIdx) + html.slice(negCloseIdx + negClose.length);
+        }
+      }
+      // Render positive block content
+      const posOpenIdx = html.indexOf(posOpen);
+      const posCloseIdx = html.indexOf(posClose, posOpenIdx + posOpen.length);
+      if (posOpenIdx !== -1 && posCloseIdx !== -1) {
+        const inner = html.slice(posOpenIdx + posOpen.length, posCloseIdx);
+        const rendered = renderPositiveFn(inner);
+        html = html.slice(0, posOpenIdx) + rendered + html.slice(posCloseIdx + posClose.length);
+      }
     } else {
-      return block.slice(0, openIdx) + block.slice(closeIdx + closeTag.length);
+      // Remove positive block, keep negative block
+      const posOpenIdx = html.indexOf(posOpen);
+      if (posOpenIdx !== -1) {
+        const posCloseIdx = html.indexOf(posClose, posOpenIdx + posOpen.length);
+        if (posCloseIdx !== -1) {
+          html = html.slice(0, posOpenIdx) + html.slice(posCloseIdx + posClose.length);
+        }
+      }
     }
+
+    return html;
   }
 
   _renderQuizSection(html, q) {
-    const sectionName = "quizSection";
-    const openTag = `{{#${sectionName}}}`;
-    const closeTag = `{{/${sectionName}}}`;
+    const hasData = q.exists && q.todayCount > 0;
 
-    const openIdx = html.indexOf(openTag);
-    const closeIdx = html.indexOf(closeTag);
-    if (openIdx === -1 || closeIdx === -1) return html;
-
-    const before = html.slice(0, openIdx);
-    const block = html.slice(openIdx + openTag.length, closeIdx);
-    const after = html.slice(closeIdx + closeTag.length);
-
-    let rendered = block;
-
-    if (q.exists && q.todayCount > 0) {
+    if (hasData) {
+      // Remove the {{^quizSection}} empty block entirely
+      html = html.replace(/\{\{\^quizSection\}\}[\s\S]*?\{\{\/quizSection\}\}/g, "");
+      // Fill in the positive block
       const replacements = {
         "{{todayCount}}": String(q.todayCount || 0),
         "{{todayCorrectRate}}": String(q.todayCorrectRate || 0),
@@ -904,64 +930,78 @@ class DailySummaryService {
         "{{overallRate}}": String(Math.round((q.overallCorrectRate || 0) * 100)),
       };
       for (const [key, value] of Object.entries(replacements)) {
-        rendered = rendered.split(key).join(value);
+        html = html.split(key).join(value);
       }
+    } else {
+      // Remove the {{#quizSection}} positive block and show empty
+      html = html.replace(/\{\{#quizSection\}\}[\s\S]*?\{\{\/quizSection\}\}/g, "");
+      html = html.replace(/\{\{\^quizSection\}\}/g, "").replace(/\{\{\/quizSection\}\}/g, "");
     }
 
-    rendered = rendered.replace(/\{\{[#^/]\w+\}\}/g, "");
-    rendered = rendered.replace(/\{\{\w+\}\}/g, "");
+    // Clean up remaining quiz-related tags
+    html = html.replace(/\{\{[#^/]quizSection\}\}/g, "");
+    html = html.replace(/\{\{todayCount\}\}/g, "0");
+    html = html.replace(/\{\{todayCorrectRate\}\}/g, "0");
+    html = html.replace(/\{\{overallCount\}\}/g, "0");
+    html = html.replace(/\{\{overallRate\}\}/g, "0");
 
-    return before + rendered + after;
+    return html;
   }
 
   _renderTomorrowPlan(html, data) {
     const planText = data._tomorrowPlan || "";
-    const openTag = "{{#tomorrowPlan}}";
-    const closeTag = "{{/tomorrowPlan}}";
-    const emptyOpenTag = "{{^tomorrowPlan}}";
-    const emptyCloseTag = "{{/tomorrowPlan}}";
-
-    const openIdx = html.indexOf(openTag);
-    const closeIdx = html.indexOf(closeTag);
-    if (openIdx === -1 || closeIdx === -1) return html;
-
-    const before = html.slice(0, openIdx);
-    const block = html.slice(openIdx + openTag.length, closeIdx);
-    const after = html.slice(closeIdx + closeTag.length);
 
     if (planText) {
-      let rendered = block.replace("{{plan}}", this._escapeHtml(planText));
-      // Remove empty block
-      const emptyIdx = rendered.indexOf(emptyOpenTag);
-      if (emptyIdx !== -1) {
-        const emptyCloseIdx = rendered.indexOf(emptyCloseTag, emptyIdx);
-        if (emptyCloseIdx !== -1) {
-          rendered = rendered.slice(0, emptyIdx) + rendered.slice(emptyCloseIdx + emptyCloseTag.length);
-        }
-      }
-      return before + rendered + after;
+      // Show plan, remove empty block
+      html = html.replace(/\{\{\^tomorrowPlan\}\}[\s\S]*?\{\{\/tomorrowPlan\}\}/g, "");
+      html = html.split("{{plan}}").join(this._escapeHtml(planText));
     } else {
-      // Keep empty block, remove the if-block
-      const ifCloseIdx = block.indexOf(closeTag);
-      const emptyStart = block.indexOf(emptyOpenTag);
-      let rendered = block;
-      if (ifCloseIdx !== -1 && emptyStart !== -1 && emptyStart < ifCloseIdx) {
-        rendered = block.slice(0, emptyStart - (closeTag.length + 1 > 0 ? closeTag.length + 1 : 0)) + block.slice(emptyStart);
-      }
-      return before + rendered + after;
+      // No plan: remove positive block, keep empty
+      html = html.replace(/\{\{#tomorrowPlan\}\}[\s\S]*?\{\{\/tomorrowPlan\}\}/g, "");
     }
+
+    // Clean up remaining tags
+    html = html.replace(/\{\{[#^/]tomorrowPlan\}\}/g, "");
+    html = html.replace(/\{\{plan\}\}/g, "");
+
+    return html;
   }
 
   _renderItem(template, item) {
     let result = template;
+
+    // First, replace simple value tags: {{key}} → value
     for (const [key, value] of Object.entries(item)) {
       if (value !== null && value !== undefined) {
         result = result.split(`{{${key}}}`).join(String(value));
       }
     }
-    // Remove unused optional tags
-    result = result.replace(/\{\{#\w+\}\}[\s\S]*?\{\{\/\w+\}\}/g, "");
-    result = result.replace(/\{\{\^?\w+\}\}/g, "");
+
+    // Handle {{#key}}...{{/key}} conditional blocks (show if key is truthy)
+    result = result.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, inner) => {
+      const val = item[key];
+      if (val !== null && val !== undefined && val !== "" && val !== false && val !== 0) {
+        // Key is truthy: keep inner content, strip the wrapper tags
+        return inner;
+      }
+      // Key is falsy or not present: remove entire block
+      return "";
+    });
+
+    // Handle {{^key}}...{{/key}} inverted conditional blocks (show if key is falsy)
+    result = result.replace(/\{\{\^(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, inner) => {
+      const val = item[key];
+      if (val === null || val === undefined || val === "" || val === false || val === 0) {
+        // Key is falsy: keep inner content, strip the wrapper tags
+        return inner;
+      }
+      // Key is truthy: remove entire block
+      return "";
+    });
+
+    // Remove any remaining unresolved {{#key}} or {{^key}} (without matching close)
+    result = result.replace(/\{\{[#^/]\w+\}\}/g, "");
+
     return result;
   }
 
