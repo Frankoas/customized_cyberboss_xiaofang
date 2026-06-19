@@ -117,6 +117,88 @@ const PROJECT_TOOLS = [
     },
   },
   {
+    name: "cyberboss_flash_memory",
+    description: "Capture, list, update, and organize flash memory items (fleeting ideas, inspirations, and to-dos from the user). Use this to save a user's spontaneous thought and later review or categorize it.",
+    shortHint: "Capture or manage flash memory items with action parameter.",
+    topics: ["flash_memory"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: capture (save a new flash), list (browse items), update (modify one item), batch_update (bulk categorize/merge/archive), review_suggestions (get items needing review).",
+          enum: ["capture", "list", "update", "batch_update", "review_suggestions"],
+        },
+        text: { type: "string", description: "[capture] The raw text of the fleeting thought." },
+        category: { type: "string", description: "[capture|list] Category: dev, life, idea, todo, or learning." },
+        tags: { type: "array", items: { type: "string" }, description: "[capture|update] Tags for the flash item." },
+        priority: { type: "string", description: "[capture|update] Priority: high, medium, or low." },
+        status: { type: "string", description: "[list] Filter by status: inbox, categorized, archived, merged, or all." },
+        limit: { type: "integer", description: "[list] Max items to return (default 20)." },
+        offset: { type: "integer", description: "[list] Pagination offset." },
+        id: { type: "string", description: "[update] The flash item id to modify." },
+        updates: { type: "object", description: "[update] Fields to update: { category?, tags?, status?, priority?, cleanedText?, relatedFlashIds?, mergedToIdeaId? }." },
+        operations: {
+          type: "array",
+          description: "[batch_update] Array of operations: { action: 'categorize'|'merge'|'archive', ids: string[], category?: string, into?: string }.",
+          items: { type: "object" },
+        },
+        since: { type: "string", description: "[review_suggestions] Optional date filter for review suggestions." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      let result;
+      switch (action) {
+        case "capture": {
+          result = await services.flashMemory.capture({
+            text: args.text,
+            category: args.category,
+            tags: args.tags,
+            priority: args.priority,
+          });
+          return { text: `Flash captured: ${result.id}`, data: result };
+        }
+        case "list": {
+          result = await services.flashMemory.list({
+            status: args.status,
+            category: args.category,
+            limit: args.limit,
+            offset: args.offset,
+          });
+          return { text: `Flash items: ${result.items.length} of ${result.total} total.`, data: result };
+        }
+        case "update": {
+          result = await services.flashMemory.update({
+            id: args.id,
+            updates: args.updates || {},
+          });
+          return { text: `Flash updated: ${result.id}`, data: result };
+        }
+        case "batch_update": {
+          result = await services.flashMemory.batchUpdate({
+            operations: args.operations || [],
+          });
+          const okCount = result.results.filter((r) => r.ok !== false).length;
+          return { text: `Flash batch update: ${okCount}/${result.results.length} ok.`, data: result };
+        }
+        case "review_suggestions": {
+          result = await services.flashMemory.reviewSuggestions({
+            since: args.since,
+          });
+          return {
+            text: `Review suggestions: ${result.inboxCount} in inbox, ${result.suggestedItems.length} suggested.${result.needsReview ? " Needs review!" : ""}`,
+            data: result,
+          };
+        }
+        default:
+          throw new Error(`Unknown flash_memory action: ${action}`);
+      }
+    },
+  },
+  {
     name: "cyberboss_system_send",
     description: "Queue an internal Cyberboss system trigger for the current bound workspace and chat.",
     shortHint: "Queue an internal system message for the current workspace.",
