@@ -5,6 +5,8 @@ const {
   STICKER_TAG_GUIDANCE,
 } = require("../services/sticker-service");
 
+let knowledgeQuizSession = null; // Module-level session for commute quiz
+
 class ProjectToolHost {
   constructor({ services, runtimeContextStore }) {
     this.services = services;
@@ -218,6 +220,138 @@ const PROJECT_TOOLS = [
         }
         default:
           throw new Error(`Unknown flash_memory action: ${action}`);
+      }
+    },
+  },
+  {
+    name: "cyberboss_knowledge_quiz",
+    description: "Run a commute-learning quiz session. Pick a random question from the knowledge base, accept an answer, judge it, and return an explanation. Use this when the user is commuting or has a short idle window.",
+    shortHint: "Start or continue a commute quiz session.",
+    topics: ["knowledge", "quiz"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: start (begin a new session), next (get a question), submit (answer the current question), stop (end session with summary), status (show stats).",
+          enum: ["start", "next", "submit", "stop", "status"],
+        },
+        category: { type: "string", description: "[start|next] Filter by category (e.g. 半导体物理, 单片机原理与应用)." },
+        estimatedMinutes: { type: "integer", description: "[start] Estimated commute time in minutes (default 15)." },
+        userAnswer: { type: "string", description: "[submit] The user's answer text." },
+        itemId: { type: "string", description: "[submit] The id of the current question item." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const { KnowledgeQuizSession } = require("../services/knowledge-quiz-session");
+
+      // Session is stored in a module-level variable (one session per MCP server lifetime)
+      if (!knowledgeQuizSession) {
+        knowledgeQuizSession = new KnowledgeQuizSession();
+      }
+      const session = knowledgeQuizSession;
+
+      let result;
+      switch (action) {
+        case "start": {
+          session.start({
+            estimatedMinutes: args.estimatedMinutes || 15,
+            category: args.category || "",
+          });
+          return {
+            text: `Quiz session started. Estimated: ${session.estimatedDurationMin} min. Call 'next' to get the first question.`,
+            data: { active: true, estimatedMinutes: session.estimatedDurationMin, category: session.category },
+          };
+        }
+        case "next": {
+          if (!session.active) {
+            session.start({ category: args.category || "" });
+          }
+          const item = services.knowledge.pickNext({
+            category: session.category || args.category || "",
+            excludeIds: session.history.map((h) => h.itemId),
+          });
+          if (!item) {
+            return { text: "No more questions available in this category.", data: null };
+          }
+          session.setCurrentItem(item);
+          return {
+            text: `Q: ${item.question}`,
+            data: {
+              itemId: item.id,
+              question: item.question,
+              difficulty: item.difficulty,
+              estimatedMinutes: item.estimatedMinutes,
+              category: item.category,
+              tags: item.tags,
+            },
+          };
+        }
+        case "submit": {
+          if (!session.active || !session.currentItem) {
+            return { text: "No active question. Call 'next' first.", data: null };
+          }
+          const checkResult = services.knowledge.checkAnswer({
+            itemId: args.itemId || session.currentItem.id,
+            userAnswer: args.userAnswer || "",
+          });
+          session.recordAnswer({
+            itemId: args.itemId || session.currentItem.id,
+            userAnswer: args.userAnswer || "",
+            correct: checkResult.correct === true,
+            explanation: checkResult.explanation,
+          });
+
+          let replyText = "";
+          if (checkResult.needsModelJudge) {
+            replyText = "Answer received. (Model should judge correctness based on explanation below.)";
+          } else if (checkResult.correct) {
+            replyText = `✅ Correct! ${checkResult.explanation || ""}`;
+          } else {
+            replyText = `❌ Not quite. ${checkResult.explanation || ""}`;
+            if (checkResult.missedKeywords.length) {
+              replyText += `\n关键词: ${checkResult.missedKeywords.join(", ")}`;
+            }
+          }
+
+          // Auto-check if time is up
+          if (session.isTimeUp()) {
+            const summary = session.end();
+            replyText += `\n\n⏰ 时间到！本次通勤刷了 ${summary.totalQuestions} 题，正确率 ${summary.correctRate}%。`;
+          }
+
+          return {
+            text: replyText,
+            data: {
+              ...checkResult,
+              sessionSummary: session.isTimeUp() ? session.summary() : null,
+              timeUp: session.isTimeUp(),
+              elapsedSinceItem: session.elapsedSinceCurrentItem(),
+            },
+          };
+        }
+        case "stop": {
+          const summary = session.end();
+          return {
+            text: `🏁 通勤学习结束。刷了 ${summary.totalQuestions} 题，正确 ${summary.correctCount}/${summary.totalQuestions}（${summary.correctRate}%），用时约 ${summary.durationMinutes} 分钟。`,
+            data: summary,
+          };
+        }
+        case "status": {
+          const kbStats = services.knowledge.getStats();
+          return {
+            text: `Knowledge base: ${kbStats.totalItems} items. Session: ${session.active ? "active" : "idle"}. Overall correct rate: ${Math.round(kbStats.overallCorrectRate * 100)}%.`,
+            data: {
+              knowledgeBase: kbStats,
+              session: session.active ? { ...session.summary(), active: true } : { active: false },
+            },
+          };
+        }
+        default:
+          throw new Error(`Unknown knowledge_quiz action: ${action}`);
       }
     },
   },
