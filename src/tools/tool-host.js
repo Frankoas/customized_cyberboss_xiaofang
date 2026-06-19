@@ -1,3 +1,5 @@
+const path = require("path");
+const os = require("os");
 const { WhereaboutsToolHost } = require("whereabouts-mcp");
 const {
   STICKER_DESC_GUIDANCE,
@@ -892,21 +894,53 @@ const PROJECT_TOOLS = [
         height: { type: "integer", description: "Optional viewport height in pixels." },
         sidePadding: { type: "integer", description: "Optional screenshot padding in pixels." },
         locale: { type: "string", description: "Optional timeline locale." },
+        htmlFile: { type: "string", description: "Absolute path to a standalone HTML file to screenshot (daily summary mode). Takes priority over timeline mode." },
+        fullPage: { type: "boolean", description: "Capture the full scrollable page height (default true). Set false for fixed viewport." },
       },
       additionalProperties: false,
     },
     async handler({ services, args, context }) {
-      const captured = await services.timeline.captureScreenshot(args);
+      const { ScreenshotService } = require("../services/screenshot-service");
+      const screenshotter = new ScreenshotService({ config: services.timeline?.config || {} });
+
+      let captured;
+      const htmlFile = String(args.htmlFile || "").trim();
+
+      if (htmlFile) {
+        // Daily summary mode: screenshot a specific HTML file
+        captured = await screenshotter.capture({
+          htmlFile: args.htmlFile,
+          outputFile: args.outputFile,
+          width: args.width || 420,
+          height: args.height || 900,
+          fullPage: args.fullPage !== false,
+          selector: args.selector || "",
+        });
+      } else {
+        // Timeline dashboard mode: serve the built timeline site
+        const siteDir = path.join(
+          services.timeline?.config?.stateDir || path.join(os.homedir(), ".cyberboss"),
+          "timeline", "site"
+        );
+        captured = await screenshotter.capture({
+          siteDir,
+          outputFile: args.outputFile,
+          width: args.width || 420,
+          height: args.height || 900,
+          fullPage: args.fullPage !== false,
+          selector: args.selector || "",
+        });
+      }
+
+      // Send to WeChat
       const delivery = await services.channelFile.sendToCurrentChat({
         userId: args.userId,
         filePath: captured.outputFile,
-      }, context);
+      }, context).catch((err) => ({ error: err.message }));
+
       return {
-        text: `Timeline screenshot sent: ${captured.outputFile}`,
-        data: {
-          ...captured,
-          delivery,
-        },
+        text: `Screenshot saved: ${captured.outputFile}`,
+        data: { ...captured, delivery },
       };
     },
   },

@@ -126,15 +126,15 @@ Before generating, call `cyberboss_daily_summary` with `action: "status"` to che
 
 ### How to present after generating
 
-After a successful generate, present the results to {{USER_NAME}}:
+After a successful generate, follow these steps:
 
-1. **闪存回顾**: Call `cyberboss_flash_memory` `action: "review_suggestions"`.
-2. **呈现亮点**: 发一条简短消息（3-4行），从 summary 数据中提取 1-2 个亮点 + 当日情绪概括。例："今天的总结写好了 📝 今天主要在____，情绪上____。有一个小胜利：____。"
-3. 如果 {{USER_NAME}} 想看详情，调 `action: "read"` 分享关键段落。
-4. 问一句"要加明天的计划吗？"，需要则用 `action: "append_plan"`。
-5. 确认收工后调 `action: "finalize"`。
-
-Screenshots can be requested separately with `/timeline` or by asking for a timeline capture. The `attach_screenshot` action is available to embed screenshots into the MD later.
+1. **截图保存**: The generate result data includes `savedPaths.html`. Call `cyberboss_timeline_screenshot` with `htmlFile: "<savedPaths.html>", width: 420, fullPage: true` to capture a mobile-friendly screenshot of the daily summary page. The tool auto-sends the image to {{USER_NAME}}.
+2. **嵌入 MD**: Call `cyberboss_daily_summary` `action: "attach_screenshot"` with `screenshotPath: "<outputFile from screenshot>"` to embed the image into the Obsidian Markdown file.
+3. **闪存回顾**: Call `cyberboss_flash_memory` `action: "review_suggestions"`.
+4. **呈现亮点**: 发一条简短消息（3-4行），从 summary 数据中提取 1-2 个亮点 + 当日情绪概括。例："今天的总结写好了 📝 今天主要在____，情绪上____。有一个小胜利：____。"
+5. 如果 {{USER_NAME}} 想看详情，调 `action: "read"` 分享关键段落。
+6. 问一句"要加明天的计划吗？"，需要则用 `action: "append_plan"`。
+7. 确认收工后调 `action: "finalize"`。
 
 ### Summary framework
 
