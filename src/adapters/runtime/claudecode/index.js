@@ -16,11 +16,15 @@ function createClaudeCodeRuntimeAdapter(config) {
   const pendingModelByWorkspaceRoot = new Map();
   const configuredModel = normalizeText(config.claudeModel);
   let globalListener = null;
-  const ipcSocketPath = path.join(
+  let ipcSocketPath = path.join(
     config.stateDir || path.join(os.homedir(), ".cyberboss"),
     "claudecode-runtime.sock",
   );
-  const ipcServer = new ClaudeCodeIpcServer({ socketPath: ipcSocketPath });
+  // Normalize path for Windows Unix socket support (Node.js requires forward slashes)
+  if (process.platform === "win32") {
+    ipcSocketPath = ipcSocketPath.replace(/\\/g, "/");
+  }
+  const ipcServer = new ClaudeCodeIpcServer({ socketPath: ipcSocketPath, stateDir: config.stateDir });
 
   hydrateRuntimeModelsFromClaudeProjects();
 

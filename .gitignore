@@ -7,3 +7,12 @@ node_modules/
 npm-debug.log*
 third_party/
 firmware/
+*.log
+.cache/
+dist/
+.cyberboss/
+# Obsidian
+.obsidian/
+# IDE
+.vscode/
+.idea/

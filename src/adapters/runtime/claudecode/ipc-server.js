@@ -4,12 +4,17 @@ const path = require("path");
 const crypto = require("crypto");
 const { EventEmitter } = require("events");
 
+const DEFAULT_PORT = 18765;
+
 class ClaudeCodeIpcServer extends EventEmitter {
-  constructor({ socketPath }) {
+  constructor({ socketPath, stateDir }) {
     super();
     this.socketPath = socketPath;
-    this.tokenFile = `${socketPath}.token`;
+    this.stateDir = stateDir || path.dirname(socketPath);
+    this.tokenFile = path.join(this.stateDir, "claudecode-runtime.token");
+    this.portFile = path.join(this.stateDir, "claudecode-runtime.port");
     this.authToken = "";
+    this.port = 0;
     this.server = null;
     this.clients = new Set();
     this.authenticated = new Set();
@@ -18,7 +23,6 @@ class ClaudeCodeIpcServer extends EventEmitter {
   start() {
     if (this.server) return;
     this.ensureDirectory();
-    this.removeStaleSocket();
     this.generateAuthToken();
 
     this.server = net.createServer((socket) => {
@@ -60,9 +64,38 @@ class ClaudeCodeIpcServer extends EventEmitter {
       });
     });
 
-    this.server.listen(this.socketPath, () => {
-      fs.chmodSync(this.socketPath, 0o600);
-    });
+    // On Windows, use TCP instead of Unix sockets (Node.js Unix sockets are unreliable on Windows)
+    if (process.platform === "win32") {
+      this.server.listen(DEFAULT_PORT, "127.0.0.1", () => {
+        this.port = DEFAULT_PORT;
+        this.savePortFile();
+      });
+      this.server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          // Fall back to random port
+          this.server.listen(0, "127.0.0.1", () => {
+            this.port = this.server.address().port;
+            this.savePortFile();
+          });
+        }
+      });
+    } else {
+      this.server.listen(this.socketPath, () => {
+        try {
+          fs.chmodSync(this.socketPath, 0o600);
+        } catch {
+          // ignore on platforms where chmod doesn't apply
+        }
+      });
+    }
+  }
+
+  savePortFile() {
+    try {
+      fs.writeFileSync(this.portFile, String(this.port), { mode: 0o600 });
+    } catch {
+      // ignore
+    }
   }
 
   broadcast(event) {
@@ -77,20 +110,7 @@ class ClaudeCodeIpcServer extends EventEmitter {
   }
 
   ensureDirectory() {
-    const dir = path.dirname(this.socketPath);
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  removeStaleSocket() {
-    try {
-      const stat = fs.lstatSync(this.socketPath);
-      if (!stat.isSocket()) {
-        return;
-      }
-      fs.unlinkSync(this.socketPath);
-    } catch {
-      // ignore
-    }
+    fs.mkdirSync(this.stateDir, { recursive: true });
   }
 
   generateAuthToken() {
@@ -105,6 +125,14 @@ class ClaudeCodeIpcServer extends EventEmitter {
   removeAuthToken() {
     try {
       fs.unlinkSync(this.tokenFile);
+    } catch {
+      // ignore
+    }
+  }
+
+  removePortFile() {
+    try {
+      fs.unlinkSync(this.portFile);
     } catch {
       // ignore
     }
@@ -128,8 +156,8 @@ class ClaudeCodeIpcServer extends EventEmitter {
       this.server = null;
     }
 
-    this.removeStaleSocket();
     this.removeAuthToken();
+    this.removePortFile();
   }
 }
 

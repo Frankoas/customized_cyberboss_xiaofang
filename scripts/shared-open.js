@@ -40,43 +40,81 @@ async function main() {
     return;
   }
 
-  // For Claude: connect to the bridge's IPC socket so we can observe and
+  // For Claude: connect to the bridge's IPC so we can observe and
   // interact with the same ClaudeCode process that handles WeChat messages.
   const stateDir = process.env.CYBERBOSS_STATE_DIR || path.join(os.homedir(), ".cyberboss");
-  const socketPath = path.join(stateDir, "claudecode-runtime.sock");
+  const tokenFile = path.join(stateDir, "claudecode-runtime.token");
+  const portFile = path.join(stateDir, "claudecode-runtime.port");
 
-  if (!fs.existsSync(socketPath)) {
-    console.error(`Claude IPC socket not found: ${socketPath}`);
-    console.error("Make sure the bridge is running with CYBERBOSS_RUNTIME=claudecode.");
-    process.exit(1);
-  }
-
-  const socket = net.createConnection(socketPath);
-  socket.setEncoding("utf8");
-
-  let connected = false;
-  await new Promise((resolve, reject) => {
-    socket.once("connect", () => {
-      connected = true;
-      resolve();
-    });
-    socket.once("error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connect timeout")), 3000);
-  });
-
-  console.log(`Connected to ClaudeCode bridge IPC (${socketPath})`);
-  console.log(`Observing workspace: ${workspaceRoot}`);
-  console.log("Type your message and press Enter to send. Ctrl+C to exit.\n");
-
-  // Authenticate with the IPC server
-  const tokenFile = `${socketPath}.token`;
   let authToken = "";
   try {
     authToken = fs.readFileSync(tokenFile, "utf8").trim();
   } catch {
     console.error(`Failed to read IPC auth token: ${tokenFile}`);
+    console.error("Make sure the bridge is running with CYBERBOSS_RUNTIME=claudecode.");
     process.exit(1);
   }
+
+  let socket;
+  if (process.platform === "win32") {
+    // Windows: use TCP (Node.js Unix sockets are unreliable on Windows)
+    let port = 0;
+    try {
+      port = parseInt(fs.readFileSync(portFile, "utf8").trim(), 10);
+    } catch {
+      console.error(`Failed to read IPC port: ${portFile}`);
+      console.error("Make sure the bridge is running with CYBERBOSS_RUNTIME=claudecode.");
+      process.exit(1);
+    }
+    if (!port || !Number.isFinite(port)) {
+      console.error(`Invalid IPC port: ${port}`);
+      process.exit(1);
+    }
+
+    socket = net.createConnection(port, "127.0.0.1");
+    socket.setEncoding("utf8");
+
+    let connected = false;
+    await new Promise((resolve, reject) => {
+      socket.once("connect", () => {
+        connected = true;
+        resolve();
+      });
+      socket.once("error", (err) => reject(err));
+      setTimeout(() => reject(new Error("connect timeout")), 3000);
+    });
+
+    console.log(`Connected to ClaudeCode bridge IPC (tcp://127.0.0.1:${port})`);
+  } else {
+    // Unix: use Unix domain socket
+    const socketPath = path.join(stateDir, "claudecode-runtime.sock");
+
+    if (!fs.existsSync(socketPath)) {
+      console.error(`Claude IPC socket not found: ${socketPath}`);
+      console.error("Make sure the bridge is running with CYBERBOSS_RUNTIME=claudecode.");
+      process.exit(1);
+    }
+
+    socket = net.createConnection(socketPath);
+    socket.setEncoding("utf8");
+
+    let connected = false;
+    await new Promise((resolve, reject) => {
+      socket.once("connect", () => {
+        connected = true;
+        resolve();
+      });
+      socket.once("error", (err) => reject(err));
+      setTimeout(() => reject(new Error("connect timeout")), 3000);
+    });
+
+    console.log(`Connected to ClaudeCode bridge IPC (${socketPath})`);
+  }
+
+  console.log(`Observing workspace: ${workspaceRoot}`);
+  console.log("Type your message and press Enter to send. Ctrl+C to exit.\n");
+
+  // Authenticate with the IPC server
   socket.write(JSON.stringify({ type: "auth", token: authToken }) + "\n");
 
   // Handle incoming events from the bridge
