@@ -47,11 +47,30 @@ function ensureInstructionsTemplate(config) {
   const filePath = typeof config?.weixinInstructionsFile === "string"
     ? config.weixinInstructionsFile.trim()
     : "";
-  if (!filePath || fs.existsSync(filePath)) {
+  if (!filePath) {
     return;
   }
 
   const templatePath = path.resolve(__dirname, "..", "templates", "weixin-instructions.md");
+  let templateMtimeMs = 0;
+  try {
+    templateMtimeMs = fs.statSync(templatePath).mtimeMs;
+  } catch {
+    return;
+  }
+
+  // Regenerate if stateDir file is missing OR template is newer than rendered file
+  let targetMtimeMs = 0;
+  try {
+    targetMtimeMs = fs.statSync(filePath).mtimeMs;
+  } catch {
+    targetMtimeMs = 0;
+  }
+
+  if (targetMtimeMs >= templateMtimeMs) {
+    return; // Rendered file is up to date
+  }
+
   let template = "";
   try {
     template = fs.readFileSync(templatePath, "utf8");
@@ -66,6 +85,7 @@ function ensureInstructionsTemplate(config) {
   }).trimEnd() + "\n";
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, "utf8");
+  console.log("[cyberboss] instructions template regenerated (template is newer)");
 }
 
 function printHelp() {
