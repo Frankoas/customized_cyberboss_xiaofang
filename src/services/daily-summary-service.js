@@ -618,10 +618,9 @@ class DailySummaryService {
    * The template reuses the paper-texture design system from timeline-for-agent.
    */
   buildHtml(data) {
+    // Resolve template relative to the cyberboss package root (../../templates/)
     const templatePath = path.join(
-      this.config.workspaceRoot || process.cwd(),
-      "templates",
-      "daily-summary.html"
+      __dirname, "..", "..", "templates", "daily-summary.html"
     );
 
     let template;
@@ -691,7 +690,7 @@ class DailySummaryService {
     // 1. Timeline events section
     html = this._renderSectionBlock(html, "timelineEvents", () => {
       if (!t.events || !t.events.length) return "";
-      return t.events.slice(0, 20).map((e) => ({
+      return t.events.slice(0, 30).map((e) => ({
         start: formatEventTime(e.startAt),
         end: formatEventTime(e.endAt),
         title: this._escapeHtml(e.title || e.eventNodeId || "—"),
@@ -699,11 +698,11 @@ class DailySummaryService {
       }));
     });
 
-    // 2. Flash Q&A section — flatten exchanges into HTML to avoid nested template issues
+    // 2. Flash Q&A section — fully expanded
     html = this._renderSectionBlock(html, "flashQaSection", () => {
       if (!fqa.qaItems || !fqa.qaItems.length) return "";
       return {
-        qaItems: fqa.qaItems.slice(0, 10).map((qa) => {
+        qaItems: fqa.qaItems.slice(0, 30).map((qa) => {
           const exchangesHtml = (qa.exchanges || []).map((ex) =>
             `<div class="flash-qa-q">🤔 ${this._escapeHtml(ex.q || "")}</div><div class="flash-qa-a">${this._escapeHtml(ex.a || "")}</div>`
           ).join("");
@@ -719,7 +718,7 @@ class DailySummaryService {
     html = this._renderSectionBlock(html, "capsuleSection", () => {
       if (!caps.capsules || !caps.capsules.length) return "";
       return {
-        capsules: caps.capsules.slice(0, 8).map((c) => ({
+        capsules: caps.capsules.slice(0, 15).map((c) => ({
           theme: this._escapeHtml(c.theme || "未命名胶囊"),
           summary: this._escapeHtml(c.summary || ""),
           linkedCount: String(c.linkedCount || 1),
@@ -730,7 +729,7 @@ class DailySummaryService {
     // 4. Flash items section
     html = this._renderSectionBlock(html, "flashItems", () => {
       if (!f.todayItems || !f.todayItems.length) return "";
-      return f.todayItems.slice(0, 15).map((item) => ({
+      return f.todayItems.slice(0, 30).map((item) => ({
         text: this._escapeHtml(item.rawText || item.cleanedText || ""),
         mood: item.mood || null,
         category: item.category || null,
@@ -743,9 +742,9 @@ class DailySummaryService {
     // 6. Diary section
     html = this._renderSectionBlock(html, "diarySection", () => {
       if (!d.entries || !d.entries.length) return "";
-      return d.entries.slice(0, 10).map((entry) => ({
+      return d.entries.slice(0, 20).map((entry) => ({
         time: entry.time || null,
-        body: this._escapeHtml(entry.body.length > 300 ? entry.body.slice(0, 300) + "..." : entry.body),
+        body: this._escapeHtml(entry.body.length > 500 ? entry.body.slice(0, 500) + "..." : entry.body),
       }));
     });
 
@@ -756,7 +755,7 @@ class DailySummaryService {
     html = this._renderSectionBlock(html, "ideaSection", () => {
       if (!ideas.drafts || !ideas.drafts.length) return "";
       return {
-        drafts: ideas.drafts.slice(0, 6).map((idea) => ({
+        drafts: ideas.drafts.slice(0, 20).map((idea) => ({
           title: this._escapeHtml(idea.title || "未命名构思"),
           lastRefined: idea.lastRefined ? `最近完善：${idea.lastRefined}` : "",
         })),
@@ -1020,7 +1019,7 @@ class DailySummaryService {
     lines.push("## ⏱ 时间轨迹", "");
 
     if (t.exists && t.events && t.events.length > 0) {
-      for (const event of t.events.slice(0, 15)) {
+      for (const event of t.events.slice(0, 30)) {
         const startTime = formatEventTime(event.startAt);
         const endTime = formatEventTime(event.endAt);
         const title = event.title || event.eventNodeId || "—";
@@ -1037,7 +1036,7 @@ class DailySummaryService {
     // Memory capsules
     if (caps.capsuleCount > 0 && caps.capsules) {
       lines.push("", "## 💊 记忆胶囊", "");
-      for (const capsule of caps.capsules.slice(0, 5)) {
+      for (const capsule of caps.capsules.slice(0, 10)) {
         lines.push(`- **${capsule.theme}**：${capsule.summary}（${capsule.linkedCount} 条关联闪存）`);
       }
     }
@@ -1045,7 +1044,7 @@ class DailySummaryService {
     // Flash Q&A
     if (fqa.qaCount > 0 && fqa.qaItems) {
       lines.push("", "## 💬 记忆碎片问答", "");
-      for (const qa of fqa.qaItems.slice(0, 8)) {
+      for (const qa of fqa.qaItems.slice(0, 30)) {
         lines.push(`- 💡 ${qa.original}`);
         for (const ex of qa.exchanges) {
           lines.push(`  - 🤔 ${ex.q}`);
@@ -1057,7 +1056,7 @@ class DailySummaryService {
 
     lines.push("", "## 💡 今日灵感", "");
     if (f.todayCount > 0 && f.todayItems) {
-      for (const item of f.todayItems.slice(0, 10)) {
+      for (const item of f.todayItems.slice(0, 30)) {
         const moodTag = item.mood ? ` \`${item.mood}\`` : "";
         const catTag = item.category ? ` [${item.category}]` : "";
         lines.push(`- ${item.rawText || item.cleanedText}${catTag}${moodTag}`);
@@ -1068,7 +1067,7 @@ class DailySummaryService {
 
     lines.push("", "## ✅ 完成事项", "");
     if (tasks.completedCount > 0) {
-      for (const task of tasks.completed.slice(0, 10)) {
+      for (const task of tasks.completed.slice(0, 20)) {
         lines.push(`- [x] ${task.text || task.id}`);
       }
     } else {
@@ -1077,16 +1076,16 @@ class DailySummaryService {
 
     if (tasks.pendingCount > 0) {
       lines.push("", "### 📝 待完成", "");
-      for (const task of tasks.pending.slice(0, 10)) {
+      for (const task of tasks.pending.slice(0, 20)) {
         lines.push(`- [ ] ${task.text || task.id}`);
       }
     }
 
     lines.push("", "## 📝 日记片段", "");
     if (d.exists && d.entries && d.entries.length > 0) {
-      for (const entry of d.entries.slice(0, 10)) {
+      for (const entry of d.entries.slice(0, 20)) {
         const timePrefix = entry.time ? `**${entry.time}** ` : "";
-        const bodyPreview = entry.body.length > 200 ? entry.body.slice(0, 200) + "..." : entry.body;
+        const bodyPreview = entry.body.length > 500 ? entry.body.slice(0, 500) + "..." : entry.body;
         lines.push(`- ${timePrefix}${bodyPreview}`);
       }
     } else {
@@ -1105,7 +1104,7 @@ class DailySummaryService {
     // Idea refinement section
     if (ideas.draftCount > 0 && ideas.drafts) {
       lines.push("", "## 🏗️ 大构思完善", "");
-      for (const idea of ideas.drafts.slice(0, 6)) {
+      for (const idea of ideas.drafts.slice(0, 20)) {
         const refinedInfo = idea.lastRefined ? `（最近完善：${idea.lastRefined}）` : "";
         lines.push(`- 📄 [[${idea.title}]] ${refinedInfo}`);
       }
