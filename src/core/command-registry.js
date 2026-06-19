@@ -253,6 +253,20 @@ const COMMAND_GROUPS = [
         status: "active",
       },
       {
+        action: "app.test_mode",
+        summary: "Toggle test mode — conversation data stored to dedicated test vault (测试模式/)",
+        terminal: [],
+        weixin: ["/test"],
+        status: "active",
+      },
+      {
+        action: "app.refine",
+        summary: "Trigger idea refinement — scan 大构思/drafts/ and start Socratic questioning",
+        terminal: [],
+        weixin: ["/refine"],
+        status: "active",
+      },
+      {
         action: "app.help",
         summary: "Show currently available commands for this channel",
         terminal: ["help"],

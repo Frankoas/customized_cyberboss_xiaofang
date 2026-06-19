@@ -619,21 +619,21 @@
       <div class="section-header">
         <span class="section-icon">🏗️</span>
         <span class="section-title">大构思完善</span>
-        <span class="section-count">{{ideaDraftCount}} 篇</span>
+        <span class="section-count">{{ideaDraftCount}} 篇 · {{ideaActiveSessions}} 活跃 · {{ideaRefinedCount}} 已完善</span>
       </div>
       {{#ideaSection}}
       <div class="idea-draft-list">
         {{#drafts}}
         <div class="idea-draft-item">
-          <span>📄 {{title}}</span>
+          <span>{{ideaStatusIcon}} {{title}}</span>
           <span class="idea-refined">{{lastRefined}}</span>
         </div>
         {{/drafts}}
         {{^drafts}}
         <div class="idea-placeholder">
-          🏗️ 大构思完善功能已就绪<br>
-          将你的构思草稿放入 <code>大构思/</code> 目录，Cyberboss 会用苏格拉底式提问帮你打磨<br>
-          <span style="font-size: var(--text-xs); color: var(--ink-4);">Phase 4 · 即将上线</span>
+          🏗️ 大构思完善已上线<br>
+          将你的构思草稿放入 <code>大构思/drafts/</code> 目录，Cyberboss 会用苏格拉底式提问帮你打磨<br>
+          <span style="font-size: var(--text-xs); color: var(--ink-4);">Phase 4 · 已启用</span>
         </div>
         {{/drafts}}
       </div>

@@ -81,6 +81,7 @@ class CyberbossApp {
     this.pendingInboundByScope = new Map();
     this.pendingImageInboundByScope = new Map();
     this.turnBoundaryScopeKeys = new Set();
+    this.testModeSenders = new Set();  // senderIds with test mode active
     this.systemMessageDispatcher = null;
     this.streamDelivery = new StreamDelivery({
       channelAdapter: this.channelAdapter,
@@ -458,6 +459,7 @@ class CyberbossApp {
         bindingKey,
         accountId: prepared.accountId,
         senderId: prepared.senderId,
+        testMode: this.testModeSenders.has(prepared.senderId),
       });
       this.turnGateStore.attachThread(pendingScopeKey, turn.threadId);
       const replyTarget = {
@@ -992,6 +994,12 @@ class CyberbossApp {
       case "summary":
         await this.handleSummaryCommand(normalized);
         return;
+      case "test":
+        await this.handleTestCommand(normalized);
+        return;
+      case "refine":
+        await this.handleRefineCommand(normalized);
+        return;
       case "help":
         await this.handleHelpCommand(normalized);
         return;
@@ -1505,6 +1513,82 @@ class CyberbossApp {
     await this.channelAdapter.sendText({
       userId: normalized.senderId,
       text: buildWeixinHelpText(),
+      contextToken: normalized.contextToken,
+    });
+  }
+
+  async handleTestCommand(normalized) {
+    const senderId = normalized.senderId;
+    const wasActive = this.testModeSenders.has(senderId);
+
+    if (wasActive) {
+      this.testModeSenders.delete(senderId);
+      await this.channelAdapter.sendText({
+        userId: senderId,
+        text: "🧪 测试模式已关闭，后续数据写入正式目录。",
+        contextToken: normalized.contextToken,
+      });
+    } else {
+      this.testModeSenders.add(senderId);
+      await this.channelAdapter.sendText({
+        userId: senderId,
+        text: "🧪 测试模式已开启，对话数据将写入 `测试模式/` 目录，不会污染正式 vault。\n\n再次发送 /test 可关闭。",
+        contextToken: normalized.contextToken,
+      });
+    }
+  }
+
+  async handleRefineCommand(normalized) {
+    const bindingKey = this.runtimeAdapter.getSessionStore().buildBindingKey({
+      workspaceId: normalized.workspaceId,
+      accountId: normalized.accountId,
+      senderId: normalized.senderId,
+    });
+    const workspaceRoot = this.resolveWorkspaceRoot(bindingKey);
+    const { IdeaRefinementScheduler } = require("../services/idea-refinement-scheduler");
+    const { IdeaRefinementService } = require("../services/idea-refinement-service");
+    const scheduler = new IdeaRefinementScheduler({
+      config: { stateDir: this.config.stateDir },
+    });
+    const service = new IdeaRefinementService({ config: this.config });
+
+    // Check current state
+    const drafts = service.scanDrafts();
+    const activeSession = service.getActiveSession();
+
+    if (activeSession) {
+      await this.channelAdapter.sendText({
+        userId: normalized.senderId,
+        text: `🔍 当前有活跃的构思完善会话：**${activeSession.draftTitle}**\n第 ${activeSession.turn} 轮，Phase ${activeSession.phase}\n\n直接回复我即可继续完善～`,
+        contextToken: normalized.contextToken,
+      });
+      return;
+    }
+
+    const pendingDrafts = drafts.drafts.filter((d) => d.status !== "completed");
+    if (pendingDrafts.length === 0) {
+      await this.channelAdapter.sendText({
+        userId: normalized.senderId,
+        text: "📭 `大构思/drafts/` 中没有待完善的构思草稿。\n\n把想法写成一个 `.md` 文件放到该目录下，再发 /refine 就行～",
+        contextToken: normalized.contextToken,
+      });
+      return;
+    }
+
+    // Enqueue a system message to prompt the model
+    this.systemMessageQueue.enqueue({
+      id: `refine-cmd:${crypto.randomUUID()}`,
+      accountId: this.activeAccountId || normalized.accountId,
+      senderId: normalized.senderId,
+      workspaceRoot,
+      text: scheduler.buildTrigger(),
+      createdAt: new Date().toISOString(),
+    });
+
+    const draftList = pendingDrafts.slice(0, 5).map((d) => `- ${d.title}${d.activeSession ? " (已有会话)" : ""}`).join("\n");
+    await this.channelAdapter.sendText({
+      userId: normalized.senderId,
+      text: `🔍 找到 ${pendingDrafts.length} 个待完善构思：\n${draftList}\n\n正在启动苏格拉底式提问引擎…`,
       contextToken: normalized.contextToken,
     });
   }

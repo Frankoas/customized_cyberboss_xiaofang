@@ -8,6 +8,7 @@ const { CheckinConfigStore, resolveDefaultCheckinRange } = require("../core/chec
 const { resolvePreferredSenderId, resolvePreferredWorkspaceRoot } = require("../core/default-targets");
 const { SystemMessageQueueStore } = require("../core/system-message-queue-store");
 const { DailySummaryScheduler } = require("../services/daily-summary-scheduler");
+const { IdeaRefinementScheduler } = require("../services/idea-refinement-scheduler");
 
 const INTERNAL_CHECKIN_TRIGGER_TEMPLATE = "%USER% comes to mind again.";
 
@@ -119,6 +120,25 @@ function buildCheckinTrigger(config) {
   if (summaryCheck.shouldGenerate) {
     console.log(`[cyberboss] checkin trigger: daily summary window (${summaryCheck.reason})`);
     return dailyScheduler.buildSummaryTrigger();
+  }
+
+  // Check for pending idea drafts (09:00-23:00)
+  const { IdeaRefinementService } = require("../services/idea-refinement-service");
+  const ideaService = new IdeaRefinementService({ config: { stateDir } });
+  const drafts = ideaService.scanDrafts();
+  const activeSession = ideaService.getActiveSession();
+  const pendingDrafts = drafts.drafts.filter((d) => d.status !== "completed");
+
+  const ideaScheduler = new IdeaRefinementScheduler({ config: { stateDir } });
+  const ideaCheck = ideaScheduler.shouldRunNow({
+    draftCount: pendingDrafts.length,
+    activeSessionCount: activeSession ? 1 : 0,
+  });
+
+  if (ideaCheck.shouldRun) {
+    console.log(`[cyberboss] checkin trigger: idea refinement (${ideaCheck.reason})`);
+    ideaScheduler.markTriggered();
+    return ideaScheduler.buildTrigger();
   }
 
   return INTERNAL_CHECKIN_TRIGGER_TEMPLATE.replace("%USER%", userName);

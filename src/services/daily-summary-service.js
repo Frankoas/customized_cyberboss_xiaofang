@@ -537,7 +537,7 @@ class DailySummaryService {
   }
 
   /**
-   * Aggregate idea refinement drafts — check the 大构思 directory.
+   * Aggregate idea refinement drafts — check the 大构思 directory and sessions.
    */
   _aggregateIdeas(dateLabel) {
     try {
@@ -547,39 +547,73 @@ class DailySummaryService {
         : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "ideas");
 
       if (!fs.existsSync(ideasDir)) {
-        return { draftCount: 0, drafts: [] };
+        return { draftCount: 0, drafts: [], activeSessions: 0, completedSessions: 0 };
       }
 
+      // Scan drafts
       const drafts = [];
-      const files = fs.readdirSync(ideasDir, { withFileTypes: true });
-      for (const file of files) {
-        if (!file.isFile() || !file.name.endsWith(".md")) continue;
-        const filePath = path.join(ideasDir, file.name);
-        const stat = fs.statSync(filePath);
-        let title = file.name.replace(/\.md$/, "");
-        let lastRefined = "";
+      const draftsDir = path.join(ideasDir, "drafts");
+      if (fs.existsSync(draftsDir)) {
+        const files = fs.readdirSync(draftsDir, { withFileTypes: true });
+        for (const file of files) {
+          if (!file.isFile() || !file.name.endsWith(".md")) continue;
+          const filePath = path.join(draftsDir, file.name);
+          const stat = fs.statSync(filePath);
+          let title = file.name.replace(/\.md$/, "");
+          let status = "pending";
 
-        // Try to read the title from the markdown frontmatter or first heading
-        try {
-          const raw = fs.readFileSync(filePath, "utf8");
-          const h1Match = raw.match(/^#\s+(.+)$/m);
-          if (h1Match) title = h1Match[1];
-          lastRefined = formatDate(stat.mtime);
-        } catch { /* ignore */ }
+          try {
+            const raw = fs.readFileSync(filePath, "utf8");
+            const h1Match = raw.match(/^#\s+(.+)$/m);
+            if (h1Match) title = h1Match[1];
+            const statusMatch = raw.match(/^status:\s*(.+)$/m);
+            if (statusMatch) status = statusMatch[1].trim();
+          } catch { /* ignore */ }
 
-        drafts.push({
-          title,
-          filePath,
-          lastRefined,
-        });
+          drafts.push({
+            title,
+            filePath,
+            status,
+            lastModified: formatDate(stat.mtime),
+          });
+        }
+      }
+
+      // Scan sessions
+      let activeSessions = 0;
+      let completedSessions = 0;
+      const sessionsDir = path.join(ideasDir, "sessions");
+      if (fs.existsSync(sessionsDir)) {
+        const sessionFiles = fs.readdirSync(sessionsDir, { withFileTypes: true });
+        for (const sf of sessionFiles) {
+          if (!sf.isFile() || !sf.name.endsWith("-session.json")) continue;
+          try {
+            const sessionData = JSON.parse(
+              fs.readFileSync(path.join(sessionsDir, sf.name), "utf8")
+            );
+            if (sessionData.status === "active") activeSessions++;
+            else if (sessionData.status === "completed") completedSessions++;
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Scan refined outputs
+      const refinedDir = path.join(ideasDir, "refined");
+      let refinedCount = 0;
+      if (fs.existsSync(refinedDir)) {
+        const refinedFiles = fs.readdirSync(refinedDir, { withFileTypes: true });
+        refinedCount = refinedFiles.filter((f) => f.isFile() && f.name.endsWith(".md")).length;
       }
 
       return {
         draftCount: drafts.length,
         drafts: drafts.slice(0, 10),
+        activeSessions,
+        completedSessions,
+        refinedCount,
       };
     } catch {
-      return { draftCount: 0, drafts: [] };
+      return { draftCount: 0, drafts: [], activeSessions: 0, completedSessions: 0 };
     }
   }
 
@@ -610,6 +644,9 @@ class DailySummaryService {
       taskCompletedCount: sections.tasks?.completedCount || 0,
       taskPendingCount: sections.tasks?.pendingCount || 0,
       ideaDraftCount: sections.ideas?.draftCount || 0,
+      ideaActiveSessions: sections.ideas?.activeSessions || 0,
+      ideaCompletedSessions: sections.ideas?.completedSessions || 0,
+      ideaRefinedCount: sections.ideas?.refinedCount || 0,
     };
   }
 
@@ -680,6 +717,9 @@ class DailySummaryService {
       "{{capsuleCount}}": String(stats.capsuleCount || 0),
       "{{diaryCount}}": String(stats.diaryEntryCount || 0),
       "{{ideaDraftCount}}": String(stats.ideaDraftCount || 0),
+      "{{ideaActiveSessions}}": String(stats.ideaActiveSessions || 0),
+      "{{ideaCompletedSessions}}": String(stats.ideaCompletedSessions || 0),
+      "{{ideaRefinedCount}}": String(stats.ideaRefinedCount || 0),
     };
 
     for (const [key, value] of Object.entries(replacements)) {
@@ -754,10 +794,14 @@ class DailySummaryService {
     html = this._renderSectionBlock(html, "ideaSection", () => {
       if (!ideas.drafts || !ideas.drafts.length) return "";
       return {
-        drafts: ideas.drafts.slice(0, 20).map((idea) => ({
-          title: this._escapeHtml(idea.title || "未命名构思"),
-          lastRefined: idea.lastRefined ? `最近完善：${idea.lastRefined}` : "",
-        })),
+        drafts: ideas.drafts.slice(0, 20).map((idea) => {
+          const statusIcon = idea.status === "completed" ? "✅" : idea.status === "in_progress" ? "🔄" : "📝";
+          return {
+            title: this._escapeHtml(idea.title || "未命名构思"),
+            ideaStatusIcon: statusIcon,
+            lastRefined: idea.lastModified ? `最近完善：${idea.lastModified}` : "",
+          };
+        }),
       };
     }, "drafts");
 
@@ -1141,15 +1185,28 @@ class DailySummaryService {
     }
 
     // Idea refinement section
-    if (ideas.draftCount > 0 && ideas.drafts) {
+    if (ideas.draftCount > 0 || ideas.activeSessions > 0 || ideas.completedSessions > 0) {
       lines.push("", "## 🏗️ 大构思完善", "");
-      for (const idea of ideas.drafts.slice(0, 20)) {
-        const refinedInfo = idea.lastRefined ? `（最近完善：${idea.lastRefined}）` : "";
-        lines.push(`- 📄 [[${idea.title}]] ${refinedInfo}`);
+      if (ideas.draftCount > 0) {
+        lines.push(`📄 **草稿**：${ideas.draftCount} 篇`);
+        for (const idea of (ideas.drafts || []).slice(0, 20)) {
+          const statusLabel = idea.status === "completed" ? "✅" : idea.status === "in_progress" ? "🔄" : "📝";
+          const statusInfo = idea.lastModified ? `（${idea.lastModified}）` : "";
+          lines.push(`  ${statusLabel} [[${idea.title}]] ${statusInfo}`);
+        }
+      }
+      if (ideas.activeSessions > 0) {
+        lines.push(`🔄 **活跃完善会话**：${ideas.activeSessions} 个`);
+      }
+      if (ideas.completedSessions > 0) {
+        lines.push(`✅ **已完成完善**：${ideas.completedSessions} 次`);
+      }
+      if (ideas.refinedCount > 0) {
+        lines.push(`📋 **完善稿**：${ideas.refinedCount} 篇`);
       }
     } else {
       lines.push("", "## 🏗️ 大构思完善", "");
-      lines.push("（暂无构思草稿 · 将你的构思放入 `大构思/` 目录即可开始）");
+      lines.push("（暂无构思草稿 · 将你的构思放入 `大构思/drafts/` 目录即可开始）");
     }
 
     lines.push("", "## 🔮 明天计划", "", "（待补充）", "");

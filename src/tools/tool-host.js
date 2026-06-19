@@ -60,6 +60,7 @@ class ProjectToolHost {
       bindingKey: normalizeText(context.bindingKey) || normalizeText(active.bindingKey),
       accountId: normalizeText(context.accountId) || normalizeText(active.accountId),
       senderId: normalizeText(context.senderId) || normalizeText(active.senderId),
+      testMode: Boolean(context.testMode) || Boolean(active.testMode),
     };
   }
 }
@@ -88,8 +89,19 @@ const PROJECT_TOOLS = [
       },
       additionalProperties: false,
     },
-    async handler({ services, args }) {
+    async handler({ services, args, context }) {
       const result = await services.diary.append(args);
+      // Test mode: also write to test vault
+      if (context.testMode) {
+        const testCopy = writeTestModeCopy({
+          context,
+          sourcePath: result.filePath,
+          subDir: "日记",
+          dataType: "diary",
+          summary: `Diary entry: ${result.date}`,
+        });
+        result.testCopy = testCopy;
+      }
       return {
         text: `Diary appended to ${result.filePath}`,
         data: result,
@@ -160,7 +172,7 @@ const PROJECT_TOOLS = [
       },
       additionalProperties: false,
     },
-    async handler({ services, args }) {
+    async handler({ services, args, context }) {
       const action = String(args.action || "").trim();
       let result;
       switch (action) {
@@ -172,6 +184,16 @@ const PROJECT_TOOLS = [
             priority: args.priority,
             mood: args.mood,
           });
+          // Test mode: also write to test vault
+          if (context.testMode) {
+            result.testCopy = writeTestModeCopy({
+              context,
+              sourcePath: result.filePath,
+              subDir: "闪存记忆",
+              dataType: "flash",
+              summary: `Flash: ${result.id}`,
+            });
+          }
           return { text: `Flash captured: ${result.id}`, data: result };
         }
         case "list": {
@@ -215,6 +237,16 @@ const PROJECT_TOOLS = [
             moodCounts: args.moodCounts,
             categorizedItems: args.categorizedItems,
           });
+          // Test mode: also write to test vault
+          if (context.testMode) {
+            result.testCopy = writeTestModeCopy({
+              context,
+              sourcePath: result.filePath,
+              subDir: "闪存记忆",
+              dataType: "flash-roundup",
+              summary: `Flash roundup: ${args.date || "recent"}`,
+            });
+          }
           return {
             text: `Flash roundup written: ${result.filePath}`,
             data: result,
@@ -383,7 +415,7 @@ const PROJECT_TOOLS = [
       },
       additionalProperties: false,
     },
-    async handler({ services, args }) {
+    async handler({ services, args, context }) {
       const action = String(args.action || "").trim();
       const { DailySummaryService } = require("../services/daily-summary-service");
       const { DailySummaryScheduler } = require("../services/daily-summary-scheduler");
@@ -426,6 +458,16 @@ const PROJECT_TOOLS = [
           });
           // Mark generation in scheduler
           scheduler.markGenerated({ draft: true });
+          // Test mode: also write to test vault
+          if (context.testMode && result.mdPath) {
+            result.testCopy = writeTestModeCopy({
+              context,
+              sourcePath: result.mdPath,
+              subDir: "每日总结",
+              dataType: "summary",
+              summary: `Daily summary: ${result.date}`,
+            });
+          }
           return {
             text: `Daily summary generated for ${result.date}. Sections: ${Object.keys(result.sections).join(", ")}. Stats: ${result.stats.eventCount} events, ${result.stats.flashTodayCount} flashes, ${result.stats.quizTodayCount} quiz items.`,
             data: result,
@@ -481,6 +523,140 @@ const PROJECT_TOOLS = [
         }
         default:
           throw new Error(`Unknown daily_summary action: ${action}`);
+      }
+    },
+  },
+  {
+    name: "cyberboss_idea_refinement",
+    description: "Manage the Socratic idea refinement engine. Drop a plain .md file into 大构思/drafts/ — the engine reads it and starts a structured 5-phase questioning session: Phase 1 anchors concrete entities (who/when/cost), Phase 2 tests fragility and causal chains, Phase 3 finds external forces (competitors/chokepoints), Phase 4 forces minimum viable version and metrics, Phase 5 terminates. Sessions auto-save every turn — if interrupted, the next /refine or checkin will resume from where it left off.",
+    shortHint: "Run the structured Socratic idea refinement engine.",
+    topics: ["idea"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: scan_drafts (list drafts with session info), start_session (begin or resume refinement), next_question (get prompt for next phase question), submit_answer (record answer + advance, also applies model's question JSON with phase/coverage/entities), stop_session (finalize and write refined markdown), status (show active session state).",
+          enum: ["scan_drafts", "start_session", "next_question", "submit_answer", "stop_session", "status"],
+        },
+        draftFile: { type: "string", description: "[start_session] The draft filename (e.g. my-idea.md) from scan_drafts." },
+        sessionId: { type: "string", description: "[next_question, submit_answer, stop_session] The session ID from start_session." },
+        answer: { type: "string", description: "[submit_answer] The user's answer text." },
+        questionData: { type: "object", description: "[submit_answer] The model-generated question JSON: {question, rationale, phase, extracted_entities, coverage_update}." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const { IdeaRefinementService } = require("../services/idea-refinement-service");
+
+      // Lazy-create if not already on services (following daily_summary pattern)
+      if (!services._ideaRefinement) {
+        const config = services.diary?.config || services.flashMemory?.config || {};
+        services._ideaRefinement = new IdeaRefinementService({ config });
+      }
+      const svc = services._ideaRefinement;
+
+      switch (action) {
+        case "scan_drafts": {
+          const result = svc.scanDrafts();
+          const pending = result.drafts.filter((d) => d.status !== "completed");
+          const withSessions = result.drafts.filter((d) => d.activeSession);
+          return {
+            text: `Found ${result.count} draft(s) total, ${pending.length} pending, ${withSessions.length} with active sessions.`,
+            data: result,
+          };
+        }
+        case "start_session": {
+          if (!args.draftFile) {
+            throw new Error("draftFile is required for start_session");
+          }
+          const result = svc.startSession(args.draftFile);
+          const phaseLabel = ["", "澄清", "挑战", "视角", "落地", "整合"][result.session.phase] || "";
+          if (result.resumed) {
+            return {
+              text: `Resumed session for "${result.session.draftTitle}" — turn ${result.session.turn}, Phase ${result.session.phase} (${phaseLabel}). Call next_question to continue.`,
+              data: result,
+            };
+          }
+          return {
+            text: `Session started for "${result.session.draftTitle}" (${result.session.sessionId}). Phase 1 — 澄清：锚定具体实体。`,
+            data: result,
+          };
+        }
+        case "next_question": {
+          if (!args.sessionId) {
+            throw new Error("sessionId is required for next_question");
+          }
+          const prompt = svc.buildQuestionPrompt(args.sessionId);
+          const phaseLabel = ["", "澄清", "挑战", "视角", "落地", "整合"][prompt.session.phase] || "";
+          return {
+            text: `Question prompt built for session ${args.sessionId}, Phase ${prompt.session.phase} (${phaseLabel}), turn ${prompt.session.turn + 1}. Read the draft content, then generate the next question as JSON: {question, rationale, phase, extracted_entities, coverage_update}. Present ONLY the question to the user.`,
+            data: prompt,
+          };
+        }
+        case "submit_answer": {
+          if (!args.sessionId) {
+            throw new Error("sessionId is required for submit_answer");
+          }
+          if (!args.answer && !args.questionData) {
+            throw new Error("answer or questionData is required for submit_answer");
+          }
+
+          // Apply question JSON first if provided
+          if (args.questionData) {
+            svc.applyQuestion(args.sessionId, args.questionData);
+          }
+
+          // Record the answer (if provided)
+          if (args.answer) {
+            const result = svc.recordAnswer(args.sessionId, args.answer);
+            if (result.shouldStop) {
+              return {
+                text: `Answer recorded. Session complete: ${result.terminationReason}. Call stop_session to finalize and save the refined output.`,
+                data: result,
+              };
+            }
+            return {
+              text: `Answer recorded. Turn ${result.session.turn}, Phase ${result.session.phase}. Session auto-saved. Call next_question to continue.`,
+              data: result,
+            };
+          }
+
+          const session = svc.getSession(args.sessionId);
+          return {
+            text: `Question applied. Turn ${session.turn}, Phase ${session.phase}.`,
+            data: { session },
+          };
+        }
+        case "stop_session": {
+          if (!args.sessionId) {
+            throw new Error("sessionId is required for stop_session");
+          }
+          const result = svc.finalizeSession(args.sessionId);
+          return {
+            text: `Session finalized: ${result.session.draftTitle} (${result.session.turn} turns). Refined output saved to 大构思/refined/.`,
+            data: result,
+          };
+        }
+        case "status": {
+          const active = svc.getActiveSession();
+          const list = svc.listSessions();
+          if (active) {
+            const phaseLabel = ["", "澄清", "挑战", "视角", "落地", "整合"][active.phase] || "";
+            return {
+              text: `Active session: ${active.draftTitle} — turn ${active.turn}, Phase ${active.phase} (${phaseLabel}). Covered: ${active.coveredDimensions.join(", ") || "none"}. Total sessions: ${list.count}.`,
+              data: { activeSession: active, allSessions: list },
+            };
+          }
+          return {
+            text: `No active session. Total sessions: ${list.count}.`,
+            data: { activeSession: null, allSessions: list },
+          };
+        }
+        default:
+          throw new Error(`Unknown idea_refinement action: ${action}`);
       }
     },
   },
@@ -956,6 +1132,82 @@ function createExtraToolHosts(services = {}) {
     hosts.push(new WhereaboutsToolHost({ service: services.whereabouts }));
   }
   return hosts;
+}
+
+function normalizeText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Test mode helper: write a copy of data to the test vault.
+ * When test mode is active, data is written to BOTH the normal vault
+ * AND the test vault (测试模式/YYYY-MM-DD/).
+ */
+function writeTestModeCopy({ context, sourcePath, subDir, dataType, summary } = {}) {
+  try {
+    const fs = require("fs");
+    const path = require("path");
+
+    // Resolve test mode directory
+    const vault = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    if (!vault) return null;
+
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const testDir = path.join(vault, "测试模式", today, subDir);
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+
+    // Copy source file if it exists
+    let copiedPath = null;
+    if (sourcePath && fs.existsSync(sourcePath)) {
+      const destName = path.basename(sourcePath);
+      const destPath = path.join(testDir, destName);
+      fs.copyFileSync(sourcePath, destPath);
+      copiedPath = destPath;
+    }
+
+    // Append to test session log
+    const sessionFile = path.join(path.dirname(testDir), "test-session.md");
+    const timeStr = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(new Date());
+
+    const entry = `| ${timeStr} | ${dataType} | ${summary} | ${copiedPath || "—"} |\n`;
+
+    if (!fs.existsSync(sessionFile)) {
+      const header = [
+        `---`,
+        `type: test-session`,
+        `started_at: "${new Date().toISOString()}"`,
+        `sender: ${context.senderId || "unknown"}`,
+        `---`,
+        ``,
+        `# 🧪 测试会话 · ${today}`,
+        ``,
+        `| 时间 | 类型 | 摘要 | 文件 |`,
+        `|------|------|------|------|`,
+      ].join("\n") + "\n";
+      fs.writeFileSync(sessionFile, header + entry, "utf8");
+    } else {
+      fs.appendFileSync(sessionFile, entry, "utf8");
+    }
+
+    return { testDir, copiedPath, sessionFile };
+  } catch (err) {
+    console.error(`[cyberboss] test mode copy failed: ${err.message}`);
+    return { error: err.message };
+  }
 }
 
 function normalizeText(value) {
