@@ -110,12 +110,49 @@ class KnowledgeService {
     const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0);
     let roll = Math.random() * totalWeight;
 
+    let picked = null;
     for (const { item, weight } of weighted) {
       roll -= weight;
-      if (roll <= 0) return item;
+      if (roll <= 0) { picked = item; break; }
+    }
+    if (!picked) picked = weighted[weighted.length - 1]?.item || null;
+    if (!picked) return null;
+
+    // Split multi-question items into single sub-questions
+    return this._resolveSingleQuestion(picked, excludeIds);
+  }
+
+  /**
+   * If an item has multiple questions (split by ？), return one sub-question.
+   * This prevents bombarding the user with multi-part questions during commute.
+   */
+  _resolveSingleQuestion(item, excludeIds = []) {
+    const subs = splitQuestions(item.question);
+    if (subs.length <= 1) {
+      return { ...item, subQuestion: null, subIndex: 0, totalSubs: 1 };
     }
 
-    return weighted[weighted.length - 1]?.item || null;
+    // Pick a sub-question that hasn't been asked recently
+    const excludeSet = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    const subKey = (idx) => `${item.id}_sub${idx}`;
+
+    // Try to pick an unasked sub-question first
+    const unasked = subs
+      .map((q, i) => ({ q, i }))
+      .filter(({ i }) => !excludeSet.has(subKey(i)));
+
+    const chosen = unasked.length > 0
+      ? unasked[Math.floor(Math.random() * unasked.length)]
+      : { q: subs[0], i: 0 };
+
+    return {
+      ...item,
+      question: chosen.q,
+      subQuestion: chosen.q,
+      subIndex: chosen.i,
+      totalSubs: subs.length,
+      _subKey: subKey(chosen.i),
+    };
   }
 
   /**
@@ -311,6 +348,38 @@ function stripYamlQuotes(value) {
     v = v.slice(1, -1);
   }
   return v;
+}
+
+/**
+ * Split a question string by Chinese/English question marks into sub-questions.
+ * "A？B？C？" → ["A？", "B？", "C？"]
+ * Also handles "A？B。" → ["A？", "B。"] (mixed punctuation)
+ */
+function splitQuestions(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return [];
+
+  // Split on ？ or ? followed by a non-empty next sentence
+  const parts = [];
+  let current = "";
+  for (let i = 0; i < normalized.length; i++) {
+    current += normalized[i];
+    if (normalized[i] === "？" || normalized[i] === "?") {
+      // Check if what follows looks like a new question/sentence
+      const rest = normalized.slice(i + 1).trim();
+      if (rest.length > 0) {
+        parts.push(current.trim());
+        current = "";
+      }
+    }
+  }
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+
+  // Deduplicate empty/single-char leftovers
+  const cleaned = parts.filter((p) => p.length > 1);
+  return cleaned.length > 0 ? cleaned : [normalized];
 }
 
 function simpleHash(str) {
