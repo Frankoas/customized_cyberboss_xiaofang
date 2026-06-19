@@ -1,0 +1,163 @@
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+/**
+ * Lightweight scheduler for daily summary generation.
+ *
+ * Since Cyberboss runs inside Claude Code sessions (not a persistent daemon),
+ * the scheduler is designed to:
+ * 1. Track the last summary generation time
+ * 2. Tell the model whether it's time to generate a summary
+ * 3. Queue system messages that prompt the model to call the daily_summary tool
+ *
+ * The actual "trigger" happens when:
+ * - The checkin poller wakes up the model near 21:00 → model sees system message
+ * - The user says "收工了" → model detects keyword → calls daily_summary generate
+ * - The user manually sends "/summary" → WeChat command routes to tool
+ */
+class DailySummaryScheduler {
+  constructor({ config }) {
+    this.config = config;
+    this.stateFile = path.join(
+      config.stateDir || path.join(os.homedir(), ".cyberboss"),
+      "daily-summary-state.json"
+    );
+  }
+
+  /**
+   * Check whether a daily summary should be generated now.
+   * Returns { shouldGenerate, reason, lastGeneratedAt }
+   */
+  shouldGenerateNow() {
+    const now = new Date();
+    const hour = now.getHours();
+    const today = formatDate(now);
+    const state = this._readState();
+
+    // Already generated today?
+    if (state.lastGeneratedDate === today) {
+      return {
+        shouldGenerate: false,
+        reason: `Summary already generated today at ${state.lastGeneratedAt}`,
+        lastGeneratedAt: state.lastGeneratedAt,
+      };
+    }
+
+    // Draft already exists?
+    if (state.lastDraftDate === today) {
+      return {
+        shouldGenerate: false,
+        reason: `Draft already exists for today (created at ${state.lastDraftAt})`,
+        lastGeneratedAt: state.lastDraftAt,
+      };
+    }
+
+    // Time window: 20:00 - 23:59 (auto window)
+    if (hour >= 20 && hour < 24) {
+      return {
+        shouldGenerate: true,
+        reason: `Within auto-generation window (20:00-23:59), current hour: ${hour}`,
+        lastGeneratedAt: null,
+      };
+    }
+
+    // Early: before 20:00 — only if user explicitly triggers
+    if (hour < 20) {
+      return {
+        shouldGenerate: false,
+        reason: `Before auto window (currently ${hour}:00), wait until 20:00 or user manually triggers`,
+        lastGeneratedAt: null,
+      };
+    }
+
+    // Late night: 00:00-05:00 — generate for previous day
+    return {
+      shouldGenerate: false,
+      reason: `Late night (${hour}:00), summary for today can still be generated manually`,
+      lastGeneratedAt: null,
+    };
+  }
+
+  /**
+   * Build a system message trigger text that prompts the model
+   * to generate the daily summary.
+   */
+  buildSummaryTrigger() {
+    const today = formatDate(new Date());
+    return [
+      `Daily summary time. Today is ${today}.`,
+      `Call cyberboss_daily_summary with action=generate to create the end-of-day summary.`,
+      `After generating, briefly describe the highlights to the user in a warm, natural tone.`,
+    ].join(" ");
+  }
+
+  /**
+   * Record that a summary was generated.
+   */
+  markGenerated({ draft = false } = {}) {
+    const now = new Date().toISOString();
+    const today = formatDate(new Date());
+    const state = this._readState();
+
+    if (draft) {
+      state.lastDraftDate = today;
+      state.lastDraftAt = now;
+    } else {
+      state.lastGeneratedDate = today;
+      state.lastGeneratedAt = now;
+    }
+
+    this._writeState(state);
+    return { recorded: true, today, at: now };
+  }
+
+  /**
+   * Get the current scheduler state.
+   */
+  getState() {
+    const state = this._readState();
+    const today = formatDate(new Date());
+    return {
+      ...state,
+      today,
+      generatedToday: state.lastGeneratedDate === today,
+      draftToday: state.lastDraftDate === today,
+    };
+  }
+
+  // ---- private ----
+
+  _readState() {
+    try {
+      if (fs.existsSync(this.stateFile)) {
+        return JSON.parse(fs.readFileSync(this.stateFile, "utf8"));
+      }
+    } catch { /* ignore */ }
+    return {
+      lastGeneratedDate: null,
+      lastGeneratedAt: null,
+      lastDraftDate: null,
+      lastDraftAt: null,
+    };
+  }
+
+  _writeState(state) {
+    const dir = path.dirname(this.stateFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(this.stateFile, JSON.stringify(state, null, 2), "utf8");
+  }
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+module.exports = { DailySummaryScheduler };

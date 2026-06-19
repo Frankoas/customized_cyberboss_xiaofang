@@ -356,6 +356,122 @@ const PROJECT_TOOLS = [
     },
   },
   {
+    name: "cyberboss_daily_summary",
+    description: "Generate, view, and manage daily summary reports. Aggregates timeline, diary, flash memory, and commute quiz data into a structured end-of-day summary. The summary follows a psychological review framework and can be output as Markdown (for Obsidian) and HTML (for timeline dashboard).",
+    shortHint: "Generate or manage daily summary reports.",
+    topics: ["summary"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: generate (create a summary for a date), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate).",
+          enum: ["generate", "status", "append_plan", "finalize", "read", "check"],
+        },
+        date: { type: "string", description: "[all] Target date in YYYY-MM-DD. Defaults to today." },
+        format: { type: "string", description: "[generate] Output format: full (complete summary with all sections) or brief (stats-only)." },
+        includeSections: {
+          type: "array",
+          items: { type: "string" },
+          description: "[generate] Sections to include: timeline, flash, diary, quiz, tasks. Default: all.",
+        },
+        plan: { type: "string", description: "[append_plan] Tomorrow's plan text to append." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const { DailySummaryService } = require("../services/daily-summary-service");
+      const { DailySummaryScheduler } = require("../services/daily-summary-scheduler");
+
+      if (!services._dailySummary) {
+        const config = services.diary?.config || services.timeline?.config || {};
+        services._dailySummary = new DailySummaryService({
+          config,
+          services: {
+            timeline: services.timeline,
+            diary: services.diary,
+            flashMemory: services.flashMemory,
+            knowledge: services.knowledge,
+          },
+        });
+      }
+      if (!services._dailyScheduler) {
+        const config = services.diary?.config || services.timeline?.config || {};
+        services._dailyScheduler = new DailySummaryScheduler({ config });
+      }
+      const svc = services._dailySummary;
+      const scheduler = services._dailyScheduler;
+
+      switch (action) {
+        case "check": {
+          const check = scheduler.shouldGenerateNow();
+          const state = scheduler.getState();
+          return {
+            text: check.shouldGenerate
+              ? `🟢 Time for summary! ${check.reason}`
+              : `🔴 Not time yet. ${check.reason}`,
+            data: { shouldGenerate: check.shouldGenerate, reason: check.reason, state },
+          };
+        }
+        case "generate": {
+          const result = await svc.generate({
+            date: args.date,
+            format: args.format || "full",
+            includeSections: Array.isArray(args.includeSections) ? args.includeSections : undefined,
+          });
+          // Mark generation in scheduler
+          scheduler.markGenerated({ draft: true });
+          return {
+            text: `Daily summary generated for ${result.date}. Sections: ${Object.keys(result.sections).join(", ")}. Stats: ${result.stats.eventCount} events, ${result.stats.flashTodayCount} flashes, ${result.stats.quizTodayCount} quiz items.`,
+            data: result,
+          };
+        }
+        case "status": {
+          const result = svc.status({ date: args.date });
+          return {
+            text: `Summary status for ${result.date}: draft=${result.draftExists}, final=${result.finalExists}. Available sections: ${result.sectionsAvailable.join(", ") || "none"}.`,
+            data: result,
+          };
+        }
+        case "append_plan": {
+          const result = svc.appendPlan({ date: args.date, plan: args.plan });
+          return {
+            text: `Plan appended to ${result.date} summary: ${result.filePath}`,
+            data: result,
+          };
+        }
+        case "finalize": {
+          const result = svc.finalize({ date: args.date });
+          scheduler.markGenerated({ draft: false });
+          return {
+            text: `Summary finalized for ${result.date}: ${result.filePath}`,
+            data: result,
+          };
+        }
+        case "read": {
+          const fs = require("fs");
+          const os = require("os");
+          const path = require("path");
+          const dateLabel = String(args.date || "").trim() || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+          const paths = svc._summaryPaths(dateLabel);
+          const targetFile = fs.existsSync(paths.finalFile) ? paths.finalFile : paths.draftFile;
+          if (!fs.existsSync(targetFile)) {
+            return { text: `No summary found for ${dateLabel}.`, data: null };
+          }
+          const mdContent = fs.readFileSync(targetFile, "utf8");
+          return {
+            text: `Summary content loaded (${mdContent.length} chars).`,
+            data: { date: dateLabel, filePath: targetFile, mdContent },
+          };
+        }
+        default:
+          throw new Error(`Unknown daily_summary action: ${action}`);
+      }
+    },
+  },
+  {
     name: "cyberboss_system_send",
     description: "Queue an internal Cyberboss system trigger for the current bound workspace and chat.",
     shortHint: "Queue an internal system message for the current workspace.",

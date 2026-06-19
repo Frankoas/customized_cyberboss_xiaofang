@@ -1,0 +1,900 @@
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+class DailySummaryService {
+  constructor({ config, services }) {
+    this.config = config;
+    this.services = services; // { timeline, diary, flashMemory, knowledge }
+  }
+
+  /**
+   * Generate a structured daily summary for the given date.
+   * Aggregates data from timeline, diary, flash memory, and quiz history.
+   */
+  async generate({
+    date = "",
+    format = "full",
+    includeSections = ["timeline", "flash", "diary", "quiz", "tasks"],
+  } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const sections = {};
+
+    // 1. Timeline events for the day
+    if (includeSections.includes("timeline")) {
+      sections.timeline = await this._aggregateTimeline(dateLabel);
+    }
+
+    // 2. Diary entries for the day
+    if (includeSections.includes("diary")) {
+      sections.diary = this._aggregateDiary(dateLabel);
+    }
+
+    // 3. Flash memory items captured today
+    if (includeSections.includes("flash")) {
+      sections.flash = this._aggregateFlash(dateLabel);
+    }
+
+    // 4. Quiz/learning records for the day
+    if (includeSections.includes("quiz")) {
+      sections.quiz = this._aggregateQuiz(dateLabel);
+    }
+
+    // 5. Task completion
+    if (includeSections.includes("tasks")) {
+      sections.tasks = this._aggregateTasks(dateLabel);
+    }
+
+    // Build the full summary data
+    const summaryData = {
+      date: dateLabel,
+      generatedAt: new Date().toISOString(),
+      format,
+      sections,
+      stats: this._computeStats(sections),
+    };
+
+    // Persist to Obsidian vault (if configured)
+    const mdContent = this._renderMarkdown(summaryData);
+    const htmlContent = this.buildHtml(summaryData);
+    const savedPaths = this._persistSummary(dateLabel, mdContent, summaryData);
+    const htmlPath = this._persistHtml(dateLabel, htmlContent);
+
+    return {
+      ...summaryData,
+      mdContent,
+      htmlContent,
+      savedPaths: { ...savedPaths, html: htmlPath },
+    };
+  }
+
+  /**
+   * Check the status of today's summary.
+   */
+  status({ date = "" } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const paths = this._summaryPaths(dateLabel);
+    const draftExists = fs.existsSync(paths.draftFile);
+    const finalExists = fs.existsSync(paths.finalFile);
+    const sectionsAvailable = [];
+
+    // Check which data sources have data for today
+    try {
+      const timelinePath = this._diaryFilePath(dateLabel);
+      if (fs.existsSync(timelinePath)) sectionsAvailable.push("timeline");
+    } catch { /* ignore */ }
+
+    try {
+      if (fs.existsSync(this._diaryFilePath(dateLabel))) sectionsAvailable.push("diary");
+    } catch { /* ignore */ }
+
+    try {
+      const flashStats = this.services.flashMemory?.getStats();
+      if (flashStats && flashStats.todayCaptured > 0) sectionsAvailable.push("flash");
+    } catch { /* ignore */ }
+
+    try {
+      const kbStats = this.services.knowledge?.getStats();
+      if (kbStats && kbStats.totalAnswers > 0) sectionsAvailable.push("quiz");
+    } catch { /* ignore */ }
+
+    return {
+      date: dateLabel,
+      draftExists,
+      finalExists,
+      sectionsAvailable,
+      lastGenerated: this._readLastGenerated(dateLabel),
+    };
+  }
+
+  /**
+   * Append tomorrow's plan to the daily summary.
+   */
+  appendPlan({ date = "", plan = "" } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const normalizedPlan = String(plan || "").trim();
+    if (!normalizedPlan) {
+      throw new Error("Plan content cannot be empty.");
+    }
+
+    const paths = this._summaryPaths(dateLabel);
+    // Write or append to the plan section
+    const existing = fs.existsSync(paths.finalFile)
+      ? fs.readFileSync(paths.finalFile, "utf8")
+      : fs.existsSync(paths.draftFile)
+        ? fs.readFileSync(paths.draftFile, "utf8")
+        : "";
+
+    const planSection = `\n## 🔮 明天计划\n\n${normalizedPlan}\n`;
+    const targetFile = fs.existsSync(paths.finalFile) ? paths.finalFile : paths.draftFile;
+
+    if (!existing) {
+      const emptySummary = `# 📋 日终总结 · ${dateLabel}\n\n${planSection}`;
+      const dir = path.dirname(targetFile);
+      ensureDir(dir);
+      fs.writeFileSync(targetFile, emptySummary, "utf8");
+    } else if (existing.includes("## 🔮 明天计划")) {
+      const updated = existing.replace(
+        /## 🔮 明天计划\n\n[\s\S]*?(?=\n##|\n*$)/,
+        `## 🔮 明天计划\n\n${normalizedPlan}\n`
+      );
+      fs.writeFileSync(targetFile, updated, "utf8");
+    } else {
+      fs.appendFileSync(targetFile, planSection, "utf8");
+    }
+
+    return { ok: true, date: dateLabel, filePath: targetFile };
+  }
+
+  // ---- Private aggregators ----
+
+  async _aggregateTimeline(dateLabel) {
+    try {
+      const result = await this.services.timeline?.read({ date: dateLabel });
+      const events = result?.data?.events || [];
+      const exists = result?.data?.exists || false;
+
+      // Categorize events
+      const categorized = {};
+      let totalMinutes = 0;
+      for (const event of events) {
+        const cat = event.categoryId || event.subcategoryId || "other";
+        if (!categorized[cat]) categorized[cat] = { label: cat, events: [], totalMinutes: 0 };
+        categorized[cat].events.push(event);
+
+        // Calculate duration
+        if (event.startAt && event.endAt) {
+          const durationMin = Math.round(
+            (new Date(event.endAt) - new Date(event.startAt)) / 60000
+          );
+          if (durationMin > 0 && durationMin < 1440) {
+            event._durationMinutes = durationMin;
+            categorized[cat].totalMinutes += durationMin;
+            totalMinutes += durationMin;
+          }
+        }
+      }
+
+      return {
+        exists,
+        eventCount: events.length,
+        totalMinutes,
+        categorized: Object.values(categorized),
+        events: events.slice(0, 50), // Keep raw events for prompt context
+      };
+    } catch {
+      return { exists: false, eventCount: 0, totalMinutes: 0, categorized: [], events: [] };
+    }
+  }
+
+  _aggregateDiary(dateLabel) {
+    try {
+      const filePath = this._diaryFilePath(dateLabel);
+      if (!fs.existsSync(filePath)) {
+        return { exists: false, entries: [], rawText: "" };
+      }
+
+      const raw = fs.readFileSync(filePath, "utf8");
+      const entries = [];
+
+      // Parse diary entries (## HH:mm sections)
+      const sectionRegex = /^##\s+(\d{2}:\d{2})(?:\s+(.*))?$/gm;
+      let match;
+      const parts = [];
+      let lastIndex = 0;
+
+      while ((match = sectionRegex.exec(raw)) !== null) {
+        if (lastIndex < match.index) {
+          parts.push({ time: parts.length ? "" : "start", title: "", body: raw.slice(lastIndex, match.index).trim() });
+        }
+        lastIndex = match.index;
+      }
+
+      // Simpler approach: just split by ## headings
+      const blocks = raw.split(/^##\s+/gm).filter(Boolean);
+      for (const block of blocks) {
+        const newlineIdx = block.indexOf("\n");
+        const header = newlineIdx === -1 ? block : block.slice(0, newlineIdx).trim();
+        const body = newlineIdx === -1 ? "" : block.slice(newlineIdx + 1).trim();
+
+        const timeMatch = header.match(/^(\d{2}:\d{2})/);
+        const time = timeMatch ? timeMatch[1] : "";
+        const title = header.replace(/^\d{2}:\d{2}\s*/, "").trim();
+
+        if (body) {
+          entries.push({ time, title, body });
+        }
+      }
+
+      return {
+        exists: true,
+        entryCount: entries.length,
+        entries,
+        rawText: raw.slice(0, 5000), // Limit for prompt context
+      };
+    } catch {
+      return { exists: false, entries: [], rawText: "" };
+    }
+  }
+
+  _aggregateFlash(dateLabel) {
+    try {
+      if (!this.services.flashMemory) {
+        return { total: 0, todayItems: [], inboxCount: 0 };
+      }
+
+      const stats = this.services.flashMemory.getStats();
+      const allItems = this.services.flashMemory.list({ status: "all", limit: 200 });
+      const todayItems = (allItems?.items || []).filter(
+        (item) => (item.createdAt || "").startsWith(dateLabel)
+      );
+
+      // Group by mood
+      const byMood = {};
+      for (const item of todayItems) {
+        if (item.mood) {
+          byMood[item.mood] = (byMood[item.mood] || 0) + 1;
+        }
+      }
+
+      // Group by category
+      const byCategory = {};
+      for (const item of todayItems) {
+        const cat = item.category || "idea";
+        byCategory[cat] = (byCategory[cat] || 0) + 1;
+      }
+
+      return {
+        total: stats?.total || 0,
+        inboxCount: stats?.inbox || 0,
+        todayCount: todayItems.length,
+        todayItems: todayItems.slice(0, 30),
+        byMood,
+        byCategory,
+      };
+    } catch {
+      return { total: 0, todayItems: [], inboxCount: 0 };
+    }
+  }
+
+  _aggregateQuiz(dateLabel) {
+    try {
+      if (!this.services.knowledge) {
+        return { exists: false, totalAnswers: 0, todayRecords: [] };
+      }
+
+      const stats = this.services.knowledge.getStats();
+      // The knowledge service history is keyed by itemId, not date
+      // We read the raw history file to filter by date
+      const history = this._readQuizHistory();
+      const todayRecords = [];
+      let todayCorrect = 0;
+      let todayTotal = 0;
+
+      for (const [itemId, record] of Object.entries(history.answers || {})) {
+        if (record.lastAnsweredAt && record.lastAnsweredAt.startsWith(dateLabel)) {
+          todayRecords.push({ itemId, ...record });
+          todayTotal += record.attemptCount || 0;
+          todayCorrect += record.correctCount || 0;
+        }
+      }
+
+      return {
+        exists: true,
+        overallTotalAnswers: stats?.totalAnswers || 0,
+        overallCorrectRate: stats?.overallCorrectRate || 0,
+        todayCount: todayRecords.length,
+        todayCorrect,
+        todayTotal,
+        todayCorrectRate: todayTotal > 0 ? Math.round((todayCorrect / todayTotal) * 100) : 0,
+        todayRecords,
+      };
+    } catch {
+      return { exists: false, totalAnswers: 0, todayRecords: [] };
+    }
+  }
+
+  _aggregateTasks(dateLabel) {
+    // Tasks come from reminders that were completed
+    try {
+      const reminderQueueFile = this.config?.reminderQueueFile;
+      if (!reminderQueueFile || !fs.existsSync(reminderQueueFile)) {
+        return { completed: [], pending: [] };
+      }
+
+      const raw = JSON.parse(fs.readFileSync(reminderQueueFile, "utf8"));
+      const reminders = Array.isArray(raw) ? raw : raw.items || [];
+      const todayReminders = reminders.filter((r) => {
+        const created = r.createdAt || "";
+        const fired = r.firedAt || "";
+        return created.startsWith(dateLabel) || fired.startsWith(dateLabel);
+      });
+
+      const completed = todayReminders.filter((r) => r.firedAt);
+      const pending = todayReminders.filter((r) => !r.firedAt);
+
+      return {
+        completed: completed.slice(0, 20),
+        pending: pending.slice(0, 20),
+        completedCount: completed.length,
+        pendingCount: pending.length,
+      };
+    } catch {
+      return { completed: [], pending: [] };
+    }
+  }
+
+  _computeStats(sections) {
+    return {
+      eventCount: sections.timeline?.eventCount || 0,
+      totalTrackedMinutes: sections.timeline?.totalMinutes || 0,
+      diaryEntryCount: sections.diary?.entryCount || 0,
+      flashTodayCount: sections.flash?.todayCount || 0,
+      flashInboxCount: sections.flash?.inboxCount || 0,
+      quizTodayCount: sections.quiz?.todayCount || 0,
+      quizCorrectRate: sections.quiz?.todayCorrectRate || 0,
+      taskCompletedCount: sections.tasks?.completedCount || 0,
+      taskPendingCount: sections.tasks?.pendingCount || 0,
+    };
+  }
+
+  /**
+   * Build an HTML version of the daily summary using the project's template.
+   * The template reuses the paper-texture design system from timeline-for-agent.
+   */
+  buildHtml(data) {
+    const templatePath = path.join(
+      this.config.workspaceRoot || process.cwd(),
+      "templates",
+      "daily-summary.html"
+    );
+
+    let template;
+    if (fs.existsSync(templatePath)) {
+      template = fs.readFileSync(templatePath, "utf8");
+    } else {
+      // Fallback: use a minimal inline template
+      template = this._fallbackHtmlTemplate();
+    }
+
+    return this._renderHtmlTemplate(template, data);
+  }
+
+  /**
+   * Persist the HTML summary alongside the Markdown version.
+   */
+  _persistHtml(dateLabel, htmlContent) {
+    const paths = this._summaryPaths(dateLabel);
+    const htmlFile = path.join(paths.baseDir, `${dateLabel}.html`);
+    ensureDir(paths.baseDir);
+    fs.writeFileSync(htmlFile, htmlContent, "utf8");
+    return htmlFile;
+  }
+
+  // ---- HTML template rendering (mustache-style) ----
+
+  _renderHtmlTemplate(template, data) {
+    const { date, sections, stats } = data;
+    const t = sections.timeline || {};
+    const d = sections.diary || {};
+    const f = sections.flash || {};
+    const q = sections.quiz || {};
+    const tasks = sections.tasks || {};
+
+    const dateObj = this._parseDate(date);
+    const dateLabel = dateObj
+      ? `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`
+      : date;
+
+    let html = template;
+
+    // Simple replacements
+    const replacements = {
+      "{{date}}": date,
+      "{{dateLabel}}": dateLabel,
+      "{{eventCount}}": String(stats.eventCount || 0),
+      "{{trackedHours}}": String(Math.round((stats.totalTrackedMinutes || 0) / 60)),
+      "{{flashCount}}": String(stats.flashTodayCount || 0),
+      "{{quizRate}}": String(stats.quizCorrectRate || 0),
+      "{{timelineCount}}": String(stats.eventCount || 0),
+      "{{flashTodayCount}}": String(stats.flashTodayCount || 0),
+      "{{diaryCount}}": String(stats.diaryEntryCount || 0),
+    };
+
+    for (const [key, value] of Object.entries(replacements)) {
+      html = html.split(key).join(value);
+    }
+
+    // Timeline events section
+    html = this._renderSectionBlock(html, "timelineEvents", () => {
+      if (!t.events || !t.events.length) return "";
+      return t.events.slice(0, 20).map((e) => ({
+        start: formatEventTime(e.startAt),
+        end: formatEventTime(e.endAt),
+        title: this._escapeHtml(e.title || e.eventNodeId || "—"),
+        duration: e._durationMinutes ? String(e._durationMinutes) : null,
+      }));
+    });
+
+    // Flash items section
+    html = this._renderSectionBlock(html, "flashItems", () => {
+      if (!f.todayItems || !f.todayItems.length) return "";
+      return f.todayItems.slice(0, 15).map((item) => ({
+        text: this._escapeHtml(item.rawText || item.cleanedText || ""),
+        mood: item.mood || null,
+        category: item.category || null,
+      }));
+    });
+
+    // Task section
+    html = this._renderTaskSection(html, tasks);
+
+    // Diary section
+    html = this._renderSectionBlock(html, "diarySection", () => {
+      if (!d.entries || !d.entries.length) return "";
+      return d.entries.slice(0, 10).map((entry) => ({
+        time: entry.time || null,
+        body: this._escapeHtml(entry.body.length > 300 ? entry.body.slice(0, 300) + "..." : entry.body),
+      }));
+    });
+
+    // Quiz section
+    html = this._renderQuizSection(html, q);
+
+    // Tomorrow plan
+    html = this._renderTomorrowPlan(html, data);
+
+    return html;
+  }
+
+  _renderSectionBlock(html, sectionName, buildItems) {
+    const items = buildItems();
+    const hasItems = items && items.length > 0;
+
+    // Replace the {{#sectionName}}...{{/sectionName}} block
+    const openTag = `{{#${sectionName}}}`;
+    const closeTag = `{{/${sectionName}}}`;
+
+    const openIdx = html.indexOf(openTag);
+    const closeIdx = html.indexOf(closeTag);
+    if (openIdx === -1 || closeIdx === -1) return html;
+
+    const before = html.slice(0, openIdx);
+    const block = html.slice(openIdx + openTag.length, closeIdx);
+    const after = html.slice(closeIdx + closeTag.length);
+
+    // Extract the {{#items}}...{{/items}} sub-block
+    const itemsOpenTag = "{{#items}}";
+    const itemsCloseTag = "{{/items}}";
+    const emptyOpenTag = "{{^items}}";
+    const emptyCloseTag = "{{/items}}";
+
+    const itemsOpenIdx = block.indexOf(itemsOpenTag);
+    const itemsCloseIdx = block.lastIndexOf(itemsCloseTag);
+    const emptyOpenIdx = block.indexOf(emptyOpenTag);
+
+    let renderedBlock;
+    if (hasItems && itemsOpenIdx !== -1 && itemsCloseIdx !== -1) {
+      const itemTemplate = block.slice(itemsOpenIdx + itemsOpenTag.length, block.indexOf(itemsCloseTag, itemsOpenIdx));
+      const renderedItems = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
+      renderedBlock = block.slice(0, itemsOpenIdx) + renderedItems + block.slice(itemsCloseIdx + itemsCloseTag.length);
+
+      // Remove the empty block if present
+      if (emptyOpenIdx !== -1) {
+        const emptyCloseIdxAfter = renderedBlock.indexOf(emptyCloseTag, emptyOpenIdx);
+        if (emptyCloseIdxAfter !== -1) {
+          renderedBlock = renderedBlock.slice(0, emptyOpenIdx) + renderedBlock.slice(emptyCloseIdxAfter + emptyCloseTag.length);
+        }
+      }
+    } else {
+      // No items: keep empty block, remove items block
+      if (emptyOpenIdx !== -1) {
+        const start = block.lastIndexOf(itemsOpenTag, emptyOpenIdx);
+        if (start !== -1) {
+          renderedBlock = block.slice(0, start) + block.slice(emptyOpenIdx);
+        } else {
+          renderedBlock = block;
+        }
+      } else {
+        renderedBlock = block;
+      }
+    }
+
+    // Clean up any remaining mustache tags
+    renderedBlock = renderedBlock.replace(/\{\{[#^/]\w+\}\}/g, "");
+    renderedBlock = renderedBlock.replace(/\{\{\w+\}\}/g, "");
+
+    return before + renderedBlock + after;
+  }
+
+  _renderTaskSection(html, tasks) {
+    const sectionName = "taskSection";
+    const openTag = `{{#${sectionName}}}`;
+    const closeTag = `{{/${sectionName}}}`;
+
+    const openIdx = html.indexOf(openTag);
+    const closeIdx = html.indexOf(closeTag);
+    if (openIdx === -1 || closeIdx === -1) return html;
+
+    const before = html.slice(0, openIdx);
+    const block = html.slice(openIdx + openTag.length, closeIdx);
+    const after = html.slice(closeIdx + closeTag.length);
+
+    let rendered = block;
+
+    // Handle {{#hasCompleted}}...{{/hasCompleted}}
+    rendered = this._renderConditionalList(rendered, "hasCompleted", "completed",
+      (tasks.completed || []).slice(0, 10).map((t) => ({ text: this._escapeHtml(t.text || t.id || "") })));
+    // Handle {{#hasPending}}...{{/hasPending}}
+    rendered = this._renderConditionalList(rendered, "hasPending", "pending",
+      (tasks.pending || []).slice(0, 10).map((t) => ({ text: this._escapeHtml(t.text || t.id || "") })));
+
+    rendered = rendered.replace(/\{\{[#^/]\w+\}\}/g, "");
+    rendered = rendered.replace(/\{\{\w+\}\}/g, "");
+
+    return before + rendered + after;
+  }
+
+  _renderConditionalList(block, condName, listName, items) {
+    const openTag = `{{#${condName}}}`;
+    const closeTag = `{{/${condName}}}`;
+    const openIdx = block.indexOf(openTag);
+    const closeIdx = block.indexOf(closeTag);
+
+    if (openIdx === -1 || closeIdx === -1) return block;
+
+    const inner = block.slice(openIdx + openTag.length, closeIdx);
+    const listOpenTag = `{{#${listName}}}`;
+    const listCloseTag = `{{/${listName}}}`;
+    const listOpenIdx = inner.indexOf(listOpenTag);
+    const listCloseIdx = inner.lastIndexOf(listCloseTag);
+
+    if (items.length > 0 && listOpenIdx !== -1 && listCloseIdx !== -1) {
+      const itemTemplate = inner.slice(listOpenIdx + listOpenTag.length, inner.indexOf(listCloseTag, listOpenIdx));
+      const renderedItems = items.map((item) => this._renderItem(itemTemplate, item)).join("\n");
+      return block.slice(0, openIdx) + inner.slice(0, listOpenIdx) + renderedItems + inner.slice(listCloseIdx + listCloseTag.length) + block.slice(closeIdx + closeTag.length);
+    } else {
+      return block.slice(0, openIdx) + block.slice(closeIdx + closeTag.length);
+    }
+  }
+
+  _renderQuizSection(html, q) {
+    const sectionName = "quizSection";
+    const openTag = `{{#${sectionName}}}`;
+    const closeTag = `{{/${sectionName}}}`;
+
+    const openIdx = html.indexOf(openTag);
+    const closeIdx = html.indexOf(closeTag);
+    if (openIdx === -1 || closeIdx === -1) return html;
+
+    const before = html.slice(0, openIdx);
+    const block = html.slice(openIdx + openTag.length, closeIdx);
+    const after = html.slice(closeIdx + closeTag.length);
+
+    let rendered = block;
+
+    if (q.exists && q.todayCount > 0) {
+      const replacements = {
+        "{{todayCount}}": String(q.todayCount || 0),
+        "{{todayCorrectRate}}": String(q.todayCorrectRate || 0),
+        "{{overallCount}}": String(q.overallTotalAnswers || 0),
+        "{{overallRate}}": String(Math.round((q.overallCorrectRate || 0) * 100)),
+      };
+      for (const [key, value] of Object.entries(replacements)) {
+        rendered = rendered.split(key).join(value);
+      }
+    }
+
+    rendered = rendered.replace(/\{\{[#^/]\w+\}\}/g, "");
+    rendered = rendered.replace(/\{\{\w+\}\}/g, "");
+
+    return before + rendered + after;
+  }
+
+  _renderTomorrowPlan(html, data) {
+    const planText = data._tomorrowPlan || "";
+    const openTag = "{{#tomorrowPlan}}";
+    const closeTag = "{{/tomorrowPlan}}";
+    const emptyOpenTag = "{{^tomorrowPlan}}";
+    const emptyCloseTag = "{{/tomorrowPlan}}";
+
+    const openIdx = html.indexOf(openTag);
+    const closeIdx = html.indexOf(closeTag);
+    if (openIdx === -1 || closeIdx === -1) return html;
+
+    const before = html.slice(0, openIdx);
+    const block = html.slice(openIdx + openTag.length, closeIdx);
+    const after = html.slice(closeIdx + closeTag.length);
+
+    if (planText) {
+      let rendered = block.replace("{{plan}}", this._escapeHtml(planText));
+      // Remove empty block
+      const emptyIdx = rendered.indexOf(emptyOpenTag);
+      if (emptyIdx !== -1) {
+        const emptyCloseIdx = rendered.indexOf(emptyCloseTag, emptyIdx);
+        if (emptyCloseIdx !== -1) {
+          rendered = rendered.slice(0, emptyIdx) + rendered.slice(emptyCloseIdx + emptyCloseTag.length);
+        }
+      }
+      return before + rendered + after;
+    } else {
+      // Keep empty block, remove the if-block
+      const ifCloseIdx = block.indexOf(closeTag);
+      const emptyStart = block.indexOf(emptyOpenTag);
+      let rendered = block;
+      if (ifCloseIdx !== -1 && emptyStart !== -1 && emptyStart < ifCloseIdx) {
+        rendered = block.slice(0, emptyStart - (closeTag.length + 1 > 0 ? closeTag.length + 1 : 0)) + block.slice(emptyStart);
+      }
+      return before + rendered + after;
+    }
+  }
+
+  _renderItem(template, item) {
+    let result = template;
+    for (const [key, value] of Object.entries(item)) {
+      if (value !== null && value !== undefined) {
+        result = result.split(`{{${key}}}`).join(String(value));
+      }
+    }
+    // Remove unused optional tags
+    result = result.replace(/\{\{#\w+\}\}[\s\S]*?\{\{\/\w+\}\}/g, "");
+    result = result.replace(/\{\{\^?\w+\}\}/g, "");
+    return result;
+  }
+
+  _escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  _parseDate(dateStr) {
+    const parts = String(dateStr || "").split("-");
+    if (parts.length === 3) {
+      return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    }
+    return null;
+  }
+
+  _fallbackHtmlTemplate() {
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>日终总结 · {{date}}</title></head><body><h1>📋 {{dateLabel}}</h1><p>Summary data available in JSON format.</p></body></html>`;
+  }
+
+  // ---- Markdown rendering ----
+
+  _renderMarkdown(data) {
+    const { date, sections, stats } = data;
+    const t = sections.timeline || {};
+    const d = sections.diary || {};
+    const f = sections.flash || {};
+    const q = sections.quiz || {};
+    const tasks = sections.tasks || {};
+
+    const lines = [
+      "---",
+      `type: daily-summary`,
+      `date: ${date}`,
+      `generated: ${data.generatedAt}`,
+      "---",
+      "",
+      `# 📋 日终总结 · ${date}`,
+      "",
+      "## ⏱ 时间轨迹",
+      "",
+    ];
+
+    if (t.exists && t.events && t.events.length > 0) {
+      for (const event of t.events.slice(0, 15)) {
+        const startTime = formatEventTime(event.startAt);
+        const endTime = formatEventTime(event.endAt);
+        const title = event.title || event.eventNodeId || "—";
+        const dur = event._durationMinutes ? ` (${event._durationMinutes}min)` : "";
+        lines.push(`- ${startTime} - ${endTime}  ${title}${dur}`);
+      }
+      if (t.totalMinutes > 0) {
+        lines.push(`- **总计追踪时间：${Math.round(t.totalMinutes / 60)}h ${t.totalMinutes % 60}min**`);
+      }
+    } else {
+      lines.push("（今日无时间轴记录）");
+    }
+
+    lines.push("", "## 💡 今日灵感", "");
+    if (f.todayCount > 0 && f.todayItems) {
+      for (const item of f.todayItems.slice(0, 10)) {
+        const moodTag = item.mood ? ` \`${item.mood}\`` : "";
+        const catTag = item.category ? ` [${item.category}]` : "";
+        lines.push(`- ${item.rawText || item.cleanedText}${catTag}${moodTag}`);
+      }
+    } else {
+      lines.push("（今日无闪存灵感）");
+    }
+
+    lines.push("", "## ✅ 完成事项", "");
+    if (tasks.completedCount > 0) {
+      for (const task of tasks.completed.slice(0, 10)) {
+        lines.push(`- [x] ${task.text || task.id}`);
+      }
+    } else {
+      lines.push("（今日无已完成任务）");
+    }
+
+    if (tasks.pendingCount > 0) {
+      lines.push("", "### 📝 待完成", "");
+      for (const task of tasks.pending.slice(0, 10)) {
+        lines.push(`- [ ] ${task.text || task.id}`);
+      }
+    }
+
+    lines.push("", "## 📝 日记片段", "");
+    if (d.exists && d.entries && d.entries.length > 0) {
+      for (const entry of d.entries.slice(0, 10)) {
+        const timePrefix = entry.time ? `**${entry.time}** ` : "";
+        const bodyPreview = entry.body.length > 200 ? entry.body.slice(0, 200) + "..." : entry.body;
+        lines.push(`- ${timePrefix}${bodyPreview}`);
+      }
+    } else {
+      lines.push("（今日无日记记录）");
+    }
+
+    lines.push("", "## 🧠 学习记录", "");
+    if (q.todayCount > 0) {
+      lines.push(`- 今日答题 ${q.todayTotal || q.todayCount} 题，正确 ${q.todayCorrect || 0} 题`);
+      lines.push(`- 正确率：${q.todayCorrectRate || 0}%`);
+      lines.push(`- 知识库总答题：${q.overallTotalAnswers || 0} 题，总体正确率 ${Math.round((q.overallCorrectRate || 0) * 100)}%`);
+    } else {
+      lines.push("（今日无学习记录）");
+    }
+
+    lines.push("", "## 🔮 明天计划", "", "（待补充）", "");
+    lines.push("---");
+    lines.push(`🤖 由 Cyberboss v0.2.0 自动生成 · ${date}`);
+
+    return lines.join("\n") + "\n";
+  }
+
+  // ---- Persistence ----
+
+  _summaryPaths(dateLabel) {
+    // Primary: Obsidian vault (if configured)
+    const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    const baseDir = obsidianDir
+      ? path.join(obsidianDir, "每日总结", dateLabel.slice(0, 4), dateLabel.slice(5, 7))
+      : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "daily-summaries", dateLabel.slice(0, 4), dateLabel.slice(5, 7));
+
+    return {
+      baseDir,
+      draftFile: path.join(baseDir, `${dateLabel}_草稿.md`),
+      finalFile: path.join(baseDir, `${dateLabel}.md`),
+      dataFile: path.join(baseDir, `${dateLabel}_data.json`),
+    };
+  }
+
+  _persistSummary(dateLabel, mdContent, summaryData) {
+    const paths = this._summaryPaths(dateLabel);
+    const savedPaths = {};
+
+    try {
+      ensureDir(paths.baseDir);
+
+      // Always write draft first
+      fs.writeFileSync(paths.draftFile, mdContent, "utf8");
+      savedPaths.draft = paths.draftFile;
+
+      // Write structured data for HTML rendering
+      fs.writeFileSync(paths.dataFile, JSON.stringify(summaryData, null, 2), "utf8");
+      savedPaths.data = paths.dataFile;
+    } catch (err) {
+      savedPaths.error = err.message;
+    }
+
+    return savedPaths;
+  }
+
+  /**
+   * Finalize a draft — move to final file.
+   */
+  finalize({ date = "" } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const paths = this._summaryPaths(dateLabel);
+
+    if (!fs.existsSync(paths.draftFile)) {
+      throw new Error(`No draft summary found for ${dateLabel}`);
+    }
+
+    const content = fs.readFileSync(paths.draftFile, "utf8");
+    fs.writeFileSync(paths.finalFile, content, "utf8");
+
+    return { ok: true, date: dateLabel, filePath: paths.finalFile };
+  }
+
+  _diaryFilePath(dateLabel) {
+    return path.join(
+      this.config?.diaryDir || path.join(os.homedir(), ".cyberboss", "diary"),
+      `${dateLabel}.md`
+    );
+  }
+
+  _readQuizHistory() {
+    const knowledgeDir = process.env.CYBERBOSS_KNOWLEDGE_BASE_DIR
+      || path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "knowledge-base");
+    const historyFile = path.join(knowledgeDir, "_quiz_history.json");
+    if (!fs.existsSync(historyFile)) return { version: 1, answers: {} };
+    try {
+      return JSON.parse(fs.readFileSync(historyFile, "utf8"));
+    } catch {
+      return { version: 1, answers: {} };
+    }
+  }
+
+  _readLastGenerated(dateLabel) {
+    const paths = this._summaryPaths(dateLabel);
+    if (fs.existsSync(paths.finalFile)) {
+      try {
+        const stat = fs.statSync(paths.finalFile);
+        return stat.mtime.toISOString();
+      } catch { /* ignore */ }
+    }
+    if (fs.existsSync(paths.draftFile)) {
+      try {
+        const stat = fs.statSync(paths.draftFile);
+        return stat.mtime.toISOString();
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+}
+
+// ---- Helpers ----
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function formatEventTime(isoStr) {
+  if (!isoStr) return "??:??";
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Shanghai",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(isoStr));
+  } catch {
+    return "??:??";
+  }
+}
+
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+module.exports = { DailySummaryService };

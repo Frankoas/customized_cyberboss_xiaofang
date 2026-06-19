@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日终总结 · {{date}}</title>
+<style>
+  :root {
+    --paper: oklch(0.970 0.012 75);
+    --paper-2: oklch(0.988 0.008 80);
+    --paper-edge: oklch(0.945 0.014 70);
+    --ink: oklch(0.305 0.018 55);
+    --ink-2: oklch(0.480 0.014 58);
+    --ink-3: oklch(0.680 0.012 62);
+    --ink-4: oklch(0.820 0.010 68);
+    --rule: oklch(0.880 0.014 65);
+    --rule-soft: oklch(0.935 0.012 70);
+    --accent: #2f7af8;
+    --accent-soft: #a0c4ff;
+    --shadow: 0 14px 32px oklch(0.30 0.02 55 / 0.10), 0 2px 10px oklch(0.30 0.02 55 / 0.05);
+    --shadow-sm: 0 1px 3px oklch(0.30 0.02 55 / 0.08);
+    --cat-life: #F4E7CE; --cat-life-ink: #6d5a2d;
+    --cat-work: #BEDAE3; --cat-work-ink: #3d5a64;
+    --cat-study: #C4D4B1; --cat-study-ink: #4d5b3a;
+    --cat-exercise: #F3EA93; --cat-exercise-ink: #6b6426;
+    --cat-entertainment: #FFD1DB; --cat-entertainment-ink: #7a3e4c;
+    --cat-health: #C4D4B1; --cat-health-ink: #4d5b3a;
+    --cat-social: #D3C7E6; --cat-social-ink: #4b4266;
+    --cat-care: #ECD5E3; --cat-care-ink: #6a4458;
+    --cat-travel: #F1B598; --cat-travel-ink: #6d3a1e;
+    --cat-rest: #FDECDF; --cat-rest-ink: #7a5a40;
+    --font-sans: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
+    --font-serif: "Iowan Old Style", "Songti SC", serif;
+    --text-xs: 12px; --text-sm: 13px; --text-md: 14px;
+    --text-lg: 18px; --text-xl: 24px;
+    --text-hero: clamp(32px, 4vw, 46px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 700px at 10% -10%, color-mix(in oklch, var(--paper-edge) 62%, transparent), transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, color-mix(in oklch, var(--paper-edge) 58%, transparent), transparent 60%),
+      var(--paper);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    width: min(1200px, calc(100vw - 48px));
+    margin: 0 auto;
+    padding: 32px 0 56px;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 40px 24px 36px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hero-date {
+    font-family: var(--font-serif);
+    font-size: var(--text-hero);
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-subtitle {
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Stat row */
+  .stat-row {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .stat-card {
+    text-align: center;
+    min-width: 80px;
+    padding: 12px 16px;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .stat-value {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    line-height: 1;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+  }
+
+  /* Sections */
+  .sections {
+    display: grid;
+    gap: 20px;
+  }
+
+  .section {
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .section-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  .section-count {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    margin-left: auto;
+  }
+
+  /* Timeline events */
+  .event-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .event-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+  }
+
+  .event-time {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 96px;
+    text-align: right;
+  }
+
+  .event-title {
+    font-size: var(--text-md);
+    color: var(--ink);
+    flex: 1;
+  }
+
+  .event-dur {
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+    white-space: nowrap;
+  }
+
+  /* Flash items */
+  .flash-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .flash-item {
+    padding: 8px 12px;
+    background: color-mix(in oklch, var(--cat-life) 30%, transparent);
+    border-left: 3px solid var(--cat-life-ink);
+    border-radius: 0 8px 8px 0;
+    font-size: var(--text-sm);
+  }
+
+  .flash-item .mood-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--paper-2);
+    margin-right: 6px;
+  }
+
+  .flash-item .cat-tag {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-left: 8px;
+  }
+
+  /* Diary entries */
+  .diary-list { display: grid; gap: 10px; }
+
+  .diary-entry {
+    padding: 10px 14px;
+    background: color-mix(in oklch, var(--cat-rest) 35%, transparent);
+    border-radius: 10px;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  .diary-time {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  /* Quiz */
+  .quiz-stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .quiz-stat {
+    text-align: center;
+  }
+
+  .quiz-stat-value {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    color: var(--ink);
+  }
+
+  .quiz-stat-label {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+  }
+
+  /* Task */
+  .task-list { display: grid; gap: 6px; }
+
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-sm);
+    padding: 4px 0;
+  }
+
+  .task-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .task-check.done {
+    background: var(--cat-study);
+    color: var(--cat-study-ink);
+  }
+
+  .task-check.pending {
+    border: 1.5px solid var(--rule);
+    color: transparent;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 16px;
+    color: var(--ink-4);
+    font-size: var(--text-sm);
+    font-style: italic;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 32px 0 0;
+    color: var(--ink-4);
+    font-size: var(--text-xs);
+    border-top: 1px solid var(--rule);
+    margin-top: 20px;
+  }
+
+  /* Tomorrow section */
+  .tomorrow-plan {
+    background: color-mix(in oklch, var(--cat-study) 25%, transparent);
+    border: 1px dashed var(--rule);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-top: 4px;
+  }
+
+  /* Print / screenshot optimizations */
+  @media print {
+    body { background: white; }
+    .section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Hero Section -->
+  <div class="hero">
+    <div class="hero-date">📋 {{dateLabel}}</div>
+    <div class="hero-subtitle">日终总结 · Daily Summary</div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-value">{{eventCount}}</div>
+        <div class="stat-label">追踪事件</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{trackedHours}}h</div>
+        <div class="stat-label">记录时长</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{flashCount}}</div>
+        <div class="stat-label">灵感闪存</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{quizRate}}%</div>
+        <div class="stat-label">答题正确率</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sections -->
+  <div class="sections">
+
+    <!-- Timeline -->
+    <div class="section" id="section-timeline">
+      <div class="section-header">
+        <span class="section-icon">⏱</span>
+        <span class="section-title">时间轨迹</span>
+        <span class="section-count">{{timelineCount}} 项</span>
+      </div>
+      {{#timelineEvents}}
+      <div class="event-list">
+        {{#events}}
+        <div class="event-row">
+          <span class="event-time">{{start}} - {{end}}</span>
+          <span class="event-title">{{title}}</span>
+          {{#duration}}<span class="event-dur">{{duration}}min</span>{{/duration}}
+        </div>
+        {{/events}}
+        {{^events}}
+        <div class="empty-state">今日无时间轴记录</div>
+        {{/events}}
+      </div>
+      {{/timelineEvents}}
+    </div>
+
+    <!-- Flash -->
+    <div class="section" id="section-flash">
+      <div class="section-header">
+        <span class="section-icon">💡</span>
+        <span class="section-title">今日灵感</span>
+        <span class="section-count">{{flashTodayCount}} 条</span>
+      </div>
+      <div class="flash-list">
+        {{#flashItems}}
+        {{#items}}
+        <div class="flash-item">
+          {{#mood}}<span class="mood-tag">{{mood}}</span>{{/mood}}
+          {{text}}
+          {{#category}}<span class="cat-tag">{{category}}</span>{{/category}}
+        </div>
+        {{/items}}
+        {{^items}}
+        <div class="empty-state">今日无闪存灵感</div>
+        {{/items}}
+      </div>
+      {{/flashItems}}
+    </div>
+
+    <!-- Tasks -->
+    <div class="section" id="section-tasks">
+      <div class="section-header">
+        <span class="section-icon">✅</span>
+        <span class="section-title">完成事项</span>
+      </div>
+      {{#taskSection}}
+      {{#hasCompleted}}
+      <div class="task-list">
+        {{#completed}}
+        <div class="task-row">
+          <span class="task-check done">✓</span>
+          <span>{{text}}</span>
+        </div>
+        {{/completed}}
+      </div>
+      {{/hasCompleted}}
+      {{#hasPending}}
+      <div class="task-list" style="margin-top: 10px;">
+        <div style="font-size: var(--text-xs); color: var(--ink-3); margin-bottom: 4px;">待完成</div>
+        {{#pending}}
+        <div class="task-row">
+          <span class="task-check pending"></span>
+          <span>{{text}}</span>
+        </div>
+        {{/pending}}
+      </div>
+      {{/hasPending}}
+      {{^hasCompleted}}
+      {{^hasPending}}
+      <div class="empty-state">今日无任务记录</div>
+      {{/hasPending}}
+      {{/hasCompleted}}
+      {{/taskSection}}
+    </div>
+
+    <!-- Diary -->
+    <div class="section" id="section-diary">
+      <div class="section-header">
+        <span class="section-icon">📝</span>
+        <span class="section-title">日记片段</span>
+        <span class="section-count">{{diaryCount}} 条</span>
+      </div>
+      {{#diarySection}}
+      <div class="diary-list">
+        {{#entries}}
+        <div class="diary-entry">
+          {{#time}}<div class="diary-time">{{time}}</div>{{/time}}
+          <div>{{body}}</div>
+        </div>
+        {{/entries}}
+        {{^entries}}
+        <div class="empty-state">今日无日记记录</div>
+        {{/entries}}
+      </div>
+      {{/diarySection}}
+    </div>
+
+    <!-- Quiz -->
+    <div class="section" id="section-quiz">
+      <div class="section-header">
+        <span class="section-icon">🧠</span>
+        <span class="section-title">学习记录</span>
+      </div>
+      {{#quizSection}}
+      <div class="quiz-stats">
+        <div class="quiz-stat">
+          <div class="quiz-stat-value">{{todayCount}}</div>
+          <div class="quiz-stat-label">今日答题数</div>
+        </div>
+        <div class="quiz-stat">
+          <div class="quiz-stat-value">{{todayCorrectRate}}%</div>
+          <div class="quiz-stat-label">今日正确率</div>
+        </div>
+        <div class="quiz-stat">
+          <div class="quiz-stat-value">{{overallCount}}</div>
+          <div class="quiz-stat-label">累计答题数</div>
+        </div>
+        <div class="quiz-stat">
+          <div class="quiz-stat-value">{{overallRate}}%</div>
+          <div class="quiz-stat-label">累计正确率</div>
+        </div>
+      </div>
+      {{/quizSection}}
+      {{^quizSection}}
+      <div class="empty-state">今日无学习记录</div>
+      {{/quizSection}}
+    </div>
+
+    <!-- Tomorrow Plan -->
+    <div class="tomorrow-plan" id="section-plan">
+      <div class="section-header" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
+        <span class="section-icon">🔮</span>
+        <span class="section-title">明天计划</span>
+      </div>
+      {{#tomorrowPlan}}
+      <div style="font-size: var(--text-sm); color: var(--ink-2); line-height: 1.7;">{{plan}}</div>
+      {{/tomorrowPlan}}
+      {{^tomorrowPlan}}
+      <div class="empty-state">待补充</div>
+      {{/tomorrowPlan}}
+    </div>
+
+  </div>
+
+  <div class="footer">
+    🤖 由 Cyberboss v0.2.0 自动生成 · {{dateLabel}}
+  </div>
+
+</div>
+</body>
+</html>
