@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>日终总结 · {{date}}</title>
+<title>日终总结 · 2026-06-20</title>
 <style>
   :root {
     --paper: oklch(0.970 0.012 75);
@@ -138,172 +138,319 @@
   <!-- Hero — unified -->
   <div class="hero">
     <div class="hero-icon">📋</div>
-    <div class="hero-title">日终总结 · {{dateLabel}}</div>
-    <div class="hero-sub">{{date}} · {{eventCount}} 个事件 · {{trackedHours}}h 记录 · 答题正确率 {{quizRate}}%</div>
+    <div class="hero-title">日终总结 · 2026年6月20日</div>
+    <div class="hero-sub">2026-06-20 · 18 个事件 · 15h 记录 · 答题正确率 80%</div>
   </div>
 
   <!-- Stat grid — unified 2×3 -->
   <div class="stat-grid">
-    <div class="stat-card"><div class="stat-num">{{eventCount}}</div><div class="stat-label">时间轴事件</div></div>
-    <div class="stat-card"><div class="stat-num">{{trackedHours}}h</div><div class="stat-label">追踪时长</div></div>
-    <div class="stat-card"><div class="stat-num">{{flashTodayCount}}</div><div class="stat-label">闪存灵感</div></div>
-    <div class="stat-card"><div class="stat-num">{{quizRate}}%</div><div class="stat-label">答题正确率</div></div>
-    <div class="stat-card"><div class="stat-num">{{diaryCount}}</div><div class="stat-label">日记记录</div></div>
-    <div class="stat-card"><div class="stat-num">{{capsuleCount}}</div><div class="stat-label">记忆胶囊</div></div>
+    <div class="stat-card"><div class="stat-num">18</div><div class="stat-label">时间轴事件</div></div>
+    <div class="stat-card"><div class="stat-num">15h</div><div class="stat-label">追踪时长</div></div>
+    <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">闪存灵感</div></div>
+    <div class="stat-card"><div class="stat-num">80%</div><div class="stat-label">答题正确率</div></div>
+    <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">日记记录</div></div>
+    <div class="stat-card"><div class="stat-num">1</div><div class="stat-label">记忆胶囊</div></div>
   </div>
 
   <!-- 1. Timeline — ⏱ 时间轨迹 -->
   <div class="section">
     <div class="section-title"><span class="icon">⏱</span>时间轨迹</div>
-    {{#timelineEvents}}
+    
     <div class="event-list">
-      {{#events}}
+      
       <div class="event-item">
-        <span class="event-time">{{start}} - {{end}}</span>
-        <span class="event-title">{{title}}</span>
-        {{#duration}}<span class="event-dur">{{duration}}分钟</span>{{/duration}}
+        <span class="event-time">07:30 - 08:30</span>
+        <span class="event-title">起床 · 洗漱 · 早餐</span>
+        <span class="event-dur">60分钟</span>
       </div>
-      {{/events}}
-      {{^events}}
-      <div class="empty">今日无时间轴记录</div>
-      {{/events}}
+      
+
+      <div class="event-item">
+        <span class="event-time">08:30 - 09:00</span>
+        <span class="event-title">通勤 · 地铁刷题</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">09:00 - 09:30</span>
+        <span class="event-title">站会 · 今日计划整理</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">09:30 - 12:00</span>
+        <span class="event-title">写 Cyberboss v0.3.2 触发修复</span>
+        <span class="event-dur">150分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">12:00 - 12:30</span>
+        <span class="event-title">午餐 · 食堂</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">12:30 - 13:00</span>
+        <span class="event-title">午休 · 刷微博</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">13:00 - 14:30</span>
+        <span class="event-title">Timeline 显示修复 · vis-item 样式调试</span>
+        <span class="event-dur">90分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">14:30 - 15:00</span>
+        <span class="event-title">用户反馈 MCP Tool 功能测试</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">15:00 - 15:30</span>
+        <span class="event-title">周/月总结模板布局修复</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">15:30 - 16:00</span>
+        <span class="event-title">截图 · 微信发送测试 · 限流排查</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">16:00 - 17:00</span>
+        <span class="event-title">README 完整重写 v0.3.2</span>
+        <span class="event-dur">60分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">17:00 - 17:30</span>
+        <span class="event-title">Git commit + tag v0.3.2 + push</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">17:30 - 18:00</span>
+        <span class="event-title">通勤回家</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">18:00 - 19:00</span>
+        <span class="event-title">晚餐 · 看新闻</span>
+        <span class="event-dur">60分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">19:00 - 20:00</span>
+        <span class="event-title">休息 · 刷 B 站</span>
+        <span class="event-dur">60分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">20:00 - 21:00</span>
+        <span class="event-title">闪存整理 · Obsidian 图谱检查</span>
+        <span class="event-dur">60分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">21:00 - 21:30</span>
+        <span class="event-title">日终总结生成 · 情绪快照</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
+
+      <div class="event-item">
+        <span class="event-time">21:30 - 22:00</span>
+        <span class="event-title">小而美收拢计划构思</span>
+        <span class="event-dur">30分钟</span>
+      </div>
+      
     </div>
-    {{/timelineEvents}}
+    
   </div>
 
   <!-- 2. Flash Q&A — 💬 记忆碎片问答 -->
   <div class="section">
     <div class="section-title"><span class="icon">💬</span>记忆碎片问答</div>
-    {{#flashQaSection}}
-    {{#qaItems}}
+    
+    
     <div class="qa-item">
-      <div class="qa-original">💡 {{original}}</div>
-      <div class="qa-exchange">{{exchangesHtml}}</div>
+      <div class="qa-original">💡 把日/周/月总结模板统一成一个设计语言</div>
+      <div class="qa-exchange"><div class="flash-qa-q">🤔 你打算从哪个模板开始统一？</div><div class="flash-qa-a">日总结最复杂，先把它拉平到周/月的简洁结构。</div><div class="flash-qa-q">🤔 怎么验证统一后的效果？</div><div class="flash-qa-a">跑个满数据的测试，三个 HTML 放一起对比看。</div></div>
     </div>
-    {{/qaItems}}
-    {{^qaItems}}
-    <div class="empty">今日无碎片问答</div>
-    {{/qaItems}}
-    {{/flashQaSection}}
+    
+    
   </div>
 
   <!-- 3. Memory Capsules — 💊 记忆胶囊 -->
   <div class="section">
     <div class="section-title"><span class="icon">💊</span>记忆胶囊</div>
-    {{#capsuleSection}}
-    {{#capsules}}
+    
+    
     <div class="capsule-item">
-      <div class="capsule-theme">{{theme}}</div>
-      <div>{{summary}}</div>
-      <div class="capsule-meta">{{linkedCount}} 条关联闪存</div>
+      <div class="capsule-theme">模板统一 · 设计系统</div>
+      <div>日/周/月总结 + 每日时间轴 → 统一纸纹设计语言</div>
+      <div class="capsule-meta">3 条关联闪存</div>
     </div>
-    {{/capsules}}
-    {{^capsules}}
-    <div class="empty">今日无记忆胶囊 · 闪存关联积累后自动生成</div>
-    {{/capsules}}
-    {{/capsuleSection}}
+    
+    
   </div>
 
   <!-- 4. Flash — 💡 今日灵感 -->
   <div class="section">
     <div class="section-title"><span class="icon">💡</span>今日灵感</div>
-    {{#flashItems}}
-    {{#items}}
+    
+    
     <div class="item-row">
-      {{#mood}}<span class="item-mood">{{mood}}</span>{{/mood}}
-      {{text}}
-      {{#category}}<span class="item-tag">{{category}}</span>{{/category}}
+      <span class="item-mood">determined</span>
+      把日/周/月总结模板统一成一个设计语言
+      <span class="item-tag">dev</span>
     </div>
-    {{/items}}
-    {{^items}}
-    <div class="empty">今日无闪存灵感</div>
-    {{/items}}
-    {{/flashItems}}
+    
+
+    <div class="item-row">
+      <span class="item-mood">curious</span>
+      周总结缺 timeline 聚合——下周补上
+      <span class="item-tag">todo</span>
+    </div>
+    
+
+    <div class="item-row">
+      <span class="item-mood">excited</span>
+      小而美不是少功能，是把功能做到刚好
+      <span class="item-tag">idea</span>
+    </div>
+    
+
+    <div class="item-row">
+      <span class="item-mood">determined</span>
+      用 Playwright 批量截图对比设计一致性
+      <span class="item-tag">dev</span>
+    </div>
+    
+
+    <div class="item-row">
+      <span class="item-mood">determined</span>
+      以后每个版本都要跑一次全模板测试
+      <span class="item-tag">todo</span>
+    </div>
+    
+    
   </div>
 
   <!-- 5. Tasks — ✅ 完成事项 -->
   <div class="section">
     <div class="section-title"><span class="icon">✅</span>完成事项</div>
-    {{#taskSection}}
-    {{#hasCompleted}}
-    {{#completed}}
-    <div class="item-row task-done">✓ {{text}}</div>
-    {{/completed}}
-    {{/hasCompleted}}
-    {{^hasCompleted}}
-    <div class="empty">今日无已完成任务</div>
-    {{/hasCompleted}}
-    {{#hasPending}}
+    
+    
+    
+    <div class="item-row task-done">✓ 写完 v0.3.2 触发修复</div>
+    
+
+    <div class="item-row task-done">✓ 修了 Timeline 重叠 bug</div>
+    
+
+    <div class="item-row task-done">✓ 跑完 npm run check</div>
+    
+
+    <div class="item-row task-done">✓ README 重写</div>
+    
+    
+    
+    
     <div style="margin-top:10px;font-size:var(--text-xs);color:var(--ink-3);margin-bottom:4px;">📝 待完成</div>
-    {{#pending}}
-    <div class="item-row" style="color:var(--ink-3);">○ {{text}}</div>
-    {{/pending}}
-    {{/hasPending}}
-    {{/taskSection}}
+    
+    <div class="item-row" style="color:var(--ink-3);">○ 小而美收拢计划写完</div>
+    
+
+    <div class="item-row" style="color:var(--ink-3);">○ 模板 CSS 变量统一</div>
+    
+    
+    
   </div>
 
   <!-- 6. Diary — 📝 日记片段 -->
   <div class="section">
     <div class="section-title"><span class="icon">📝</span>日记片段</div>
-    {{#diarySection}}
-    {{#entries}}
+    
+    
     <div class="item-row">
-      {{#time}}<div class="diary-time">{{time}}</div>{{/time}}
-      <div>{{body}}</div>
+      <div class="diary-time">22:00</div>
+      <div>今天完成了 v0.3.2，系统越来越稳了。小而美收拢计划写了一半，明天继续。</div>
     </div>
-    {{/entries}}
-    {{^entries}}
-    <div class="empty">今日无日记记录</div>
-    {{/entries}}
-    {{/diarySection}}
+    
+
+    <div class="item-row">
+      <div class="diary-time">08:30</div>
+      <div>地铁上刷了 3 题半导体物理，PN 结那题还是不太熟。</div>
+    </div>
+    
+    
   </div>
 
   <!-- 7. Quiz — 🧠 学习记录 -->
   <div class="section">
     <div class="section-title"><span class="icon">🧠</span>学习记录</div>
-    {{#quizSection}}
+    
     <div class="quiz-stats">
-      <p>📖 今日答题 <strong>{{todayCount}}</strong> 题 · 正确率 <strong>{{todayCorrectRate}}%</strong></p>
-      <p>📚 累计答题 <strong>{{overallCount}}</strong> 题 · 正确率 <strong>{{overallRate}}%</strong></p>
+      <p>📖 今日答题 <strong>5</strong> 题 · 正确率 <strong>80%</strong></p>
+      <p>📚 累计答题 <strong>135</strong> 题 · 正确率 <strong>73%</strong></p>
     </div>
-    {{/quizSection}}
-    {{^quizSection}}
-    <div class="empty">今日无学习记录</div>
-    {{/quizSection}}
+    
+    
   </div>
 
   <!-- 8. Ideas — 🏗️ 大构思完善 -->
   <div class="section">
     <div class="section-title"><span class="icon">🏗️</span>大构思完善</div>
-    {{#ideaSection}}
-    {{#drafts}}
+    
+    
     <div class="idea-item">
-      <span><span class="idea-status">{{ideaStatusIcon}}</span> {{title}}</span>
-      <span class="idea-refined">{{lastRefined}}</span>
+      <span><span class="idea-status">✅</span> 爱是虚拟的</span>
+      <span class="idea-refined">最近完善：2026-06-20</span>
     </div>
-    {{/drafts}}
-    {{^drafts}}
-    <div class="empty">暂无构思草稿 · 将构思放入 大构思/drafts/ 即可开始</div>
-    {{/drafts}}
+    
+
+    <div class="idea-item">
+      <span><span class="idea-status">🔄</span> 沉没意志</span>
+      <span class="idea-refined">最近完善：2026-06-20</span>
+    </div>
+    
     <div style="margin-top:8px;font-size:var(--text-xs);color:var(--ink-3);">
-      草稿 {{ideaDraftCount}} 篇 · 活跃 {{ideaActiveSessions}} · 已完善 {{ideaRefinedCount}}
+      草稿 2 篇 · 活跃 1 · 已完善 2
     </div>
-    {{/ideaSection}}
+    
   </div>
 
   <!-- 9. Tomorrow — 🔮 明天计划 -->
   <div class="section">
     <div class="section-title"><span class="icon">🔮</span>明天计划</div>
-    {{#tomorrowPlan}}
-    <div style="font-size:var(--text-sm);color:var(--ink-2);line-height:1.7;">{{plan}}</div>
-    {{/tomorrowPlan}}
-    {{^tomorrowPlan}}
+    
+    
     <div class="empty">待补充</div>
-    {{/tomorrowPlan}}
+    
   </div>
 
   <!-- Footer -->
-  <div class="footer">🤖 由 Cyberboss v0.3.2 自动生成 · {{date}}</div>
+  <div class="footer">🤖 由 Cyberboss v0.3.2 自动生成 · 2026-06-20</div>
 
 </div>
 </body>

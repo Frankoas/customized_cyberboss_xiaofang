@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日时间轴 · {{date}}</title>
+<style>
+  :root {
+    --paper: oklch(0.970 0.012 75);
+    --paper-2: oklch(0.988 0.008 80);
+    --paper-edge: oklch(0.945 0.014 70);
+    --ink: oklch(0.305 0.018 55);
+    --ink-2: oklch(0.480 0.014 58);
+    --ink-3: oklch(0.680 0.012 62);
+    --ink-4: oklch(0.820 0.010 68);
+    --rule: oklch(0.880 0.014 65);
+    --rule-soft: oklch(0.935 0.012 70);
+    --accent: #2f7af8;
+    --accent-soft: #a0c4ff;
+    --shadow-sm: 0 1px 3px oklch(0.30 0.02 55 / 0.08);
+    --cat-life: #F4E7CE; --cat-life-ink: #6d5a2d;
+    --cat-work: #BEDAE3; --cat-work-ink: #3d5a64;
+    --cat-study: #C4D4B1; --cat-study-ink: #4d5b3a;
+    --cat-exercise: #F3EA93; --cat-exercise-ink: #6b6426;
+    --cat-entertainment: #FFD1DB; --cat-entertainment-ink: #7a3e4c;
+    --cat-health: #C4D4B1; --cat-health-ink: #4d5b3a;
+    --cat-social: #D3C7E6; --cat-social-ink: #4b4266;
+    --cat-care: #ECD5E3; --cat-care-ink: #6a4458;
+    --cat-travel: #F1B598; --cat-travel-ink: #6d3a1e;
+    --cat-rest: #FDECDF; --cat-rest-ink: #7a5a40;
+    --font-sans: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --font-serif: "Songti SC", "Noto Serif CJK SC", serif;
+    --text-xs: 12px; --text-sm: 13px; --text-md: 14px;
+    --text-lg: 17px; --text-xl: 22px;
+    --page-width: 420px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    color: var(--ink);
+    background: var(--paper);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+  }
+
+  .page {
+    width: 100%;
+    max-width: var(--page-width);
+    background: var(--paper-2);
+    box-shadow: var(--shadow-sm);
+    min-height: 100vh;
+    padding: 28px 24px 36px;
+  }
+
+  /* Hero */
+  .hero { text-align: center; padding: 24px 0 16px; border-bottom: 2px solid var(--rule); margin-bottom: 20px; }
+  .hero-icon { font-size: 36px; margin-bottom: 6px; }
+  .hero-title { font-family: var(--font-serif); font-size: var(--text-xl); font-weight: 700; color: var(--ink); }
+  .hero-sub { font-size: var(--text-sm); color: var(--ink-3); margin-top: 4px; }
+
+  /* Stat grid */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 22px; }
+  .stat-card { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 10px; padding: 10px 6px; text-align: center; min-width: 0; overflow: hidden; }
+  .stat-num { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--accent); word-break: break-all; }
+  .stat-label { font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; }
+
+  /* Section */
+  .section { margin-bottom: 22px; }
+  .section-title { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--rule-soft); padding-bottom: 6px; margin-bottom: 12px; }
+  .section-title .icon { margin-right: 6px; }
+
+  /* Timeline — enhanced day view */
+  .tl-list { position: relative; }
+  .tl-list::before {
+    content: "";
+    position: absolute;
+    left: 7px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--rule);
+    border-radius: 1px;
+  }
+
+  .tl-item { display: flex; padding: 0 0 14px 24px; position: relative; }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-item:last-child .tl-body { border-bottom: none; }
+
+  /* Category dot on timeline */
+  .tl-dot {
+    position: absolute;
+    left: 2px; top: 3px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--paper-2);
+    background: var(--rule);
+    z-index: 1;
+  }
+  .tl-dot.cat-work { background: #1a5dc4; }
+  .tl-dot.cat-life { background: #d4920b; }
+  .tl-dot.cat-study { background: #2d8c3c; }
+  .tl-dot.cat-travel { background: #c7451a; }
+  .tl-dot.cat-rest { background: #7b5ea7; }
+  .tl-dot.cat-exercise { background: #e0552a; }
+  .tl-dot.cat-entertainment { background: #c7255c; }
+  .tl-dot.cat-health { background: #1d8c7a; }
+  .tl-dot.cat-social { background: #6a3eb5; }
+  .tl-dot.cat-care { background: #b84578; }
+
+  .tl-body { flex: 1; padding-bottom: 12px; border-bottom: 1px solid var(--rule-soft); min-width: 0; }
+  .tl-item:last-child .tl-body { padding-bottom: 0; }
+
+  .tl-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .tl-time { font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tl-title { font-size: var(--text-sm); font-weight: 600; color: var(--ink); line-height: 1.4; word-break: break-word; }
+  .tl-dur { font-size: 11px; color: var(--ink-4); white-space: nowrap; margin-left: auto; }
+  .tl-note { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; line-height: 1.5; }
+  .tl-cat-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-top: 2px; }
+
+  /* Category summary bar */
+  .cat-bar-wrap { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+  .cat-bar-seg { height: 100%; min-width: 2px; }
+
+  .cat-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 11px; color: var(--ink-3); margin-bottom: 20px; }
+  .cat-legend-item { display: flex; align-items: center; gap: 4px; }
+  .cat-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Footer */
+  .footer { text-align: center; color: var(--ink-4); font-size: 11px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--rule); }
+
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">⏱</div>
+    <div class="hero-title">{{dateLabel}} · {{weekday}}</div>
+    <div class="hero-sub">{{eventCount}} 个事件 · {{totalHours}}h 记录</div>
+  </div>
+
+  <!-- Stat grid -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num">{{eventCount}}</div><div class="stat-label">时间轴事件</div></div>
+    <div class="stat-card"><div class="stat-num">{{totalHours}}h</div><div class="stat-label">追踪时长</div></div>
+    <div class="stat-card"><div class="stat-num">{{categoryCount}}</div><div class="stat-label">活动类别</div></div>
+    <div class="stat-card"><div class="stat-num">{{avgEvent}}分钟</div><div class="stat-label">平均事件</div></div>
+  </div>
+
+  <!-- Category bar -->
+  {{#catBar}}
+  <div class="section">
+    <div class="section-title"><span class="icon">🎨</span>时间分配</div>
+    <div class="cat-bar-wrap">{{catSegments}}</div>
+    <div class="cat-legend">{{catLegend}}</div>
+  </div>
+  {{/catBar}}
+
+  <!-- Timeline -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🕐</span>全天时间轴</div>
+    <div class="tl-list">{{eventItems}}</div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">🤖 由 Cyberboss v0.3.2 自动生成 · {{date}}</div>
+
+</div>
+</body>
+</html>

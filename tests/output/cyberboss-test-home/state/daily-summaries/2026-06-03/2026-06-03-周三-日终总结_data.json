@@ -1,0 +1,139 @@
+{
+  "date": "2026-06-03",
+  "generatedAt": "2026-06-03T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 11,
+      "totalMinutes": 600,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 1,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "平静",
+        "mood_score": 3
+      }
+    },
+    "flash": {
+      "total": 45,
+      "inboxCount": 8,
+      "todayCount": 0,
+      "todayItems": [],
+      "byMood": {
+        "excited": 1,
+        "curious": 0,
+        "determined": 1,
+        "playful": 1,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 0,
+        "dev": 0,
+        "life": 0,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 125,
+      "overallCorrectRate": 0.72,
+      "todayCount": 5,
+      "todayCorrect": 5,
+      "todayTotal": 5,
+      "todayCorrectRate": 99,
+      "todayRecords": [
+        {
+          "itemId": "quiz_20",
+          "title": "费米能级",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-03T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_0",
+          "title": "肖特基接触",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-03T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_1",
+          "title": "MOSFET阈值电压",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-03T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_2",
+          "title": "中断优先级",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-03T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_3",
+          "title": "ADC采样",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-03T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-03_0",
+          "text": "写完 v0.3.0 周总结模板"
+        }
+      ],
+      "pending": [],
+      "completedCount": 1,
+      "pendingCount": 0
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 11,
+    "totalTrackedMinutes": 600,
+    "diaryEntryCount": 1,
+    "flashTodayCount": 0,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 5,
+    "quizCorrectRate": 99,
+    "taskCompletedCount": 1,
+    "taskPendingCount": 0,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "平静",
+    "dailyMoodScore": 3
+  }
+}

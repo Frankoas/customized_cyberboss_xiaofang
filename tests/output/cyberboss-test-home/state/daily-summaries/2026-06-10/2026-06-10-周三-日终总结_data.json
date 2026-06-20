@@ -1,0 +1,208 @@
+{
+  "date": "2026-06-10",
+  "generatedAt": "2026-06-10T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 12,
+      "totalMinutes": 575,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 1,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "平静",
+        "mood_score": 3
+      }
+    },
+    "flash": {
+      "total": 49,
+      "inboxCount": 5,
+      "todayCount": 4,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-10_001",
+          "rawText": "大构思的追问能不能用语音回答",
+          "cleanedText": "大构思的追问能不能用语音回答",
+          "category": "learning",
+          "mood": "anxious",
+          "tags": [
+            "工具",
+            "效率"
+          ]
+        },
+        {
+          "id": "fm_2026-06-10_002",
+          "rawText": "用 LLM 做个人知识图谱的自动构建",
+          "cleanedText": "用 LLM 做个人知识图谱的自动构建",
+          "category": "idea",
+          "mood": "excited",
+          "tags": [
+            "AI",
+            "知识图谱"
+          ]
+        },
+        {
+          "id": "fm_2026-06-10_003",
+          "rawText": "把每日总结的时间热力图改成日历视图",
+          "cleanedText": "把每日总结的时间热力图改成日历视图",
+          "category": "dev",
+          "mood": "curious",
+          "tags": [
+            "前端",
+            "可视化"
+          ]
+        },
+        {
+          "id": "fm_2026-06-10_004",
+          "rawText": "给 Cyberboss 加一个喝水提醒功能",
+          "cleanedText": "给 Cyberboss 加一个喝水提醒功能",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 1,
+        "curious": 1,
+        "determined": 1,
+        "playful": 0,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 2,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 2,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 125,
+      "overallCorrectRate": 0.72,
+      "todayCount": 5,
+      "todayCorrect": 3,
+      "todayTotal": 5,
+      "todayCorrectRate": 57,
+      "todayRecords": [
+        {
+          "itemId": "quiz_6",
+          "title": "看门狗",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-10T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_7",
+          "title": "能带理论",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-10T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_8",
+          "title": "PN结",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-10T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_9",
+          "title": "费米能级",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-10T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_10",
+          "title": "肖特基接触",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-10T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-10_0",
+          "text": "写完 v0.3.0 周总结模板"
+        },
+        {
+          "id": "task_2026-06-10_1",
+          "text": "修了 Timeline 重叠 bug"
+        },
+        {
+          "id": "task_2026-06-10_2",
+          "text": "跑完 npm run check"
+        },
+        {
+          "id": "task_2026-06-10_3",
+          "text": "整理闪存到分类归档"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-10_0",
+          "text": "重构 screenshot service"
+        }
+      ],
+      "completedCount": 4,
+      "pendingCount": 1
+    },
+    "ideas": {
+      "draftCount": 1,
+      "drafts": [
+        {
+          "title": "爱是虚拟的",
+          "status": "completed",
+          "refinedLink": "[[爱是虚拟的-20260620-完善]]",
+          "lastModified": "2026-06-10"
+        }
+      ],
+      "activeSessions": 1,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 12,
+    "totalTrackedMinutes": 575,
+    "diaryEntryCount": 1,
+    "flashTodayCount": 4,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 2,
+    "quizTodayCount": 5,
+    "quizCorrectRate": 57,
+    "taskCompletedCount": 4,
+    "taskPendingCount": 1,
+    "ideaDraftCount": 1,
+    "ideaActiveSessions": 1,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "平静",
+    "dailyMoodScore": 3
+  }
+}

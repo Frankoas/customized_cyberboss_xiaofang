@@ -1,0 +1,173 @@
+{
+  "date": "2026-06-05",
+  "generatedAt": "2026-06-05T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 11,
+      "totalMinutes": 473,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 1,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "兴奋",
+        "mood_score": 5
+      }
+    },
+    "flash": {
+      "total": 49,
+      "inboxCount": 7,
+      "todayCount": 4,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-05_001",
+          "rawText": "应该把闪存按情绪自动聚类到 Obsidian",
+          "cleanedText": "应该把闪存按情绪自动聚类到 Obsidian",
+          "category": "learning",
+          "mood": "anxious",
+          "tags": [
+            "工具",
+            "效率"
+          ]
+        },
+        {
+          "id": "fm_2026-06-05_002",
+          "rawText": "通勤刷题能不能加个错题本模式",
+          "cleanedText": "通勤刷题能不能加个错题本模式",
+          "category": "idea",
+          "mood": "excited",
+          "tags": [
+            "AI",
+            "知识图谱"
+          ]
+        },
+        {
+          "id": "fm_2026-06-05_003",
+          "rawText": "感觉到周总结比日总结更有洞察价值",
+          "cleanedText": "感觉到周总结比日总结更有洞察价值",
+          "category": "dev",
+          "mood": "curious",
+          "tags": [
+            "前端",
+            "可视化"
+          ]
+        },
+        {
+          "id": "fm_2026-06-05_004",
+          "rawText": "考虑把 vault 搬到 iCloud 同步",
+          "cleanedText": "考虑把 vault 搬到 iCloud 同步",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 1,
+        "curious": 0,
+        "determined": 0,
+        "playful": 1,
+        "anxious": 0
+      },
+      "byCategory": {
+        "idea": 2,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 123,
+      "overallCorrectRate": 0.72,
+      "todayCount": 3,
+      "todayCorrect": 2,
+      "todayTotal": 3,
+      "todayCorrectRate": 74,
+      "todayRecords": [
+        {
+          "itemId": "quiz_19",
+          "title": "MOSFET阈值电压",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-05T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_20",
+          "title": "中断优先级",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-05T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_0",
+          "title": "ADC采样",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-05T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-05_0",
+          "text": "写完 v0.3.0 周总结模板"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-05_0",
+          "text": "重构 screenshot service"
+        }
+      ],
+      "completedCount": 1,
+      "pendingCount": 1
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 11,
+    "totalTrackedMinutes": 473,
+    "diaryEntryCount": 1,
+    "flashTodayCount": 4,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 3,
+    "quizCorrectRate": 74,
+    "taskCompletedCount": 1,
+    "taskPendingCount": 1,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "兴奋",
+    "dailyMoodScore": 5
+  }
+}

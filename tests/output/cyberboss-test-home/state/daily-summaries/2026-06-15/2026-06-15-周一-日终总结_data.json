@@ -1,0 +1,210 @@
+{
+  "date": "2026-06-15",
+  "generatedAt": "2026-06-15T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 15,
+      "totalMinutes": 480,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 3,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "充实",
+        "mood_score": 4
+      }
+    },
+    "flash": {
+      "total": 49,
+      "inboxCount": 8,
+      "todayCount": 4,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-15_001",
+          "rawText": "用 LLM 做个人知识图谱的自动构建",
+          "cleanedText": "用 LLM 做个人知识图谱的自动构建",
+          "category": "idea",
+          "mood": "excited",
+          "tags": [
+            "AI",
+            "知识图谱"
+          ]
+        },
+        {
+          "id": "fm_2026-06-15_002",
+          "rawText": "把每日总结的时间热力图改成日历视图",
+          "cleanedText": "把每日总结的时间热力图改成日历视图",
+          "category": "dev",
+          "mood": "curious",
+          "tags": [
+            "前端",
+            "可视化"
+          ]
+        },
+        {
+          "id": "fm_2026-06-15_003",
+          "rawText": "给 Cyberboss 加一个喝水提醒功能",
+          "cleanedText": "给 Cyberboss 加一个喝水提醒功能",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        },
+        {
+          "id": "fm_2026-06-15_004",
+          "rawText": "周末想去看《沙丘3》",
+          "cleanedText": "周末想去看《沙丘3》",
+          "category": "todo",
+          "mood": "playful",
+          "tags": [
+            "娱乐",
+            "电影"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 0,
+        "curious": 0,
+        "determined": 1,
+        "playful": 1,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 2,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 2,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 127,
+      "overallCorrectRate": 0.72,
+      "todayCount": 7,
+      "todayCorrect": 5,
+      "todayTotal": 7,
+      "todayCorrectRate": 75,
+      "todayRecords": [
+        {
+          "itemId": "quiz_0",
+          "title": "能带理论",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-15T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_1",
+          "title": "PN结",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-15T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_2",
+          "title": "费米能级",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-15T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_3",
+          "title": "肖特基接触",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-15T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_4",
+          "title": "MOSFET阈值电压",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-15T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-15_0",
+          "text": "写完 v0.3.0 周总结模板"
+        },
+        {
+          "id": "task_2026-06-15_1",
+          "text": "修了 Timeline 重叠 bug"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-15_0",
+          "text": "重构 screenshot service"
+        },
+        {
+          "id": "task_pending_2026-06-15_1",
+          "text": "给知识库加10道题"
+        }
+      ],
+      "completedCount": 2,
+      "pendingCount": 2
+    },
+    "ideas": {
+      "draftCount": 2,
+      "drafts": [
+        {
+          "title": "爱是虚拟的",
+          "status": "completed",
+          "refinedLink": "[[爱是虚拟的-20260620-完善]]",
+          "lastModified": "2026-06-15"
+        },
+        {
+          "title": "沉没意志",
+          "status": "in_progress",
+          "refinedLink": null,
+          "lastModified": "2026-06-15"
+        }
+      ],
+      "activeSessions": 1,
+      "completedSessions": 1,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 15,
+    "totalTrackedMinutes": 480,
+    "diaryEntryCount": 3,
+    "flashTodayCount": 4,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 2,
+    "quizTodayCount": 7,
+    "quizCorrectRate": 75,
+    "taskCompletedCount": 2,
+    "taskPendingCount": 2,
+    "ideaDraftCount": 2,
+    "ideaActiveSessions": 1,
+    "ideaCompletedSessions": 1,
+    "ideaRefinedCount": 2,
+    "dailyMood": "充实",
+    "dailyMoodScore": 4
+  }
+}

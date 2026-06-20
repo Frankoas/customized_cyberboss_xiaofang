@@ -1,0 +1,199 @@
+{
+  "weekLabel": "2026-W25",
+  "dateRange": "6月15日 - 6月21日",
+  "dailyCount": 7,
+  "eventCount": 73,
+  "totalMinutes": 2740,
+  "trackedHours": 46,
+  "flashCount": 21,
+  "quizCount": 30,
+  "diaryCount": 11,
+  "taskCompleted": 16,
+  "quizRate": 67,
+  "timelineSection": null,
+  "moodSection": {
+    "moods": [
+      {
+        "label": "excited",
+        "count": 6,
+        "pct": 14
+      },
+      {
+        "label": "determined",
+        "count": 5,
+        "pct": 12
+      },
+      {
+        "label": "playful",
+        "count": 4,
+        "pct": 10
+      },
+      {
+        "label": "curious",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "anxious",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "充实",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "开心",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "平静",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "焦虑",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "兴奋",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "疲惫",
+        "count": 3,
+        "pct": 7
+      },
+      {
+        "label": "一般",
+        "count": 3,
+        "pct": 7
+      }
+    ]
+  },
+  "flashSection": {
+    "items": [
+      {
+        "text": "用 LLM 做个人知识图谱的自动构建",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "把每日总结的时间热力图改成日历视图",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "给 Cyberboss 加一个喝水提醒功能",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "把每日总结的时间热力图改成日历视图",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "给 Cyberboss 加一个喝水提醒功能",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "给 Cyberboss 加一个喝水提醒功能",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "应该把闪存按情绪自动聚类到 Obsidian",
+        "category": "learning",
+        "mood": "anxious"
+      },
+      {
+        "text": "应该把闪存按情绪自动聚类到 Obsidian",
+        "category": "learning",
+        "mood": "anxious"
+      },
+      {
+        "text": "通勤刷题能不能加个错题本模式",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "感觉到周总结比日总结更有洞察价值",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "通勤刷题能不能加个错题本模式",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "感觉到周总结比日总结更有洞察价值",
+        "category": "dev",
+        "mood": "curious"
+      }
+    ]
+  },
+  "quizSection": {
+    "topics": [
+      {
+        "name": "MOSFET阈值电压",
+        "count": 5
+      },
+      {
+        "name": "中断优先级",
+        "count": 5
+      },
+      {
+        "name": "肖特基接触",
+        "count": 4
+      },
+      {
+        "name": "ADC采样",
+        "count": 4
+      },
+      {
+        "name": "费米能级",
+        "count": 3
+      },
+      {
+        "name": "PN结",
+        "count": 2
+      },
+      {
+        "name": "SPI时序",
+        "count": 2
+      },
+      {
+        "name": "能带理论",
+        "count": 1
+      },
+      {
+        "name": "I2C仲裁",
+        "count": 1
+      }
+    ]
+  },
+  "tasksSection": null,
+  "generatedAt": "2026-06-20T09:42:16.169Z"
+}

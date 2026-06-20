@@ -1,0 +1,190 @@
+{
+  "date": "2026-06-19",
+  "generatedAt": "2026-06-19T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 11,
+      "totalMinutes": 473,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": false,
+      "entryCount": 0,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "兴奋",
+        "mood_score": 5
+      }
+    },
+    "flash": {
+      "total": 48,
+      "inboxCount": 5,
+      "todayCount": 3,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-19_001",
+          "rawText": "应该把闪存按情绪自动聚类到 Obsidian",
+          "cleanedText": "应该把闪存按情绪自动聚类到 Obsidian",
+          "category": "learning",
+          "mood": "anxious",
+          "tags": [
+            "工具",
+            "效率"
+          ]
+        },
+        {
+          "id": "fm_2026-06-19_002",
+          "rawText": "通勤刷题能不能加个错题本模式",
+          "cleanedText": "通勤刷题能不能加个错题本模式",
+          "category": "idea",
+          "mood": "excited",
+          "tags": [
+            "AI",
+            "知识图谱"
+          ]
+        },
+        {
+          "id": "fm_2026-06-19_003",
+          "rawText": "感觉到周总结比日总结更有洞察价值",
+          "cleanedText": "感觉到周总结比日总结更有洞察价值",
+          "category": "dev",
+          "mood": "curious",
+          "tags": [
+            "前端",
+            "可视化"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 1,
+        "curious": 1,
+        "determined": 1,
+        "playful": 1,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 1,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 126,
+      "overallCorrectRate": 0.72,
+      "todayCount": 6,
+      "todayCorrect": 3,
+      "todayTotal": 6,
+      "todayCorrectRate": 53,
+      "todayRecords": [
+        {
+          "itemId": "quiz_19",
+          "title": "MOSFET阈值电压",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-19T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_20",
+          "title": "中断优先级",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-19T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_0",
+          "title": "ADC采样",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-19T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_1",
+          "title": "SPI时序",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-19T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_2",
+          "title": "I2C仲裁",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-19T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-19_0",
+          "text": "写完 v0.3.0 周总结模板"
+        },
+        {
+          "id": "task_2026-06-19_1",
+          "text": "修了 Timeline 重叠 bug"
+        },
+        {
+          "id": "task_2026-06-19_2",
+          "text": "跑完 npm run check"
+        },
+        {
+          "id": "task_2026-06-19_3",
+          "text": "整理闪存到分类归档"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-19_0",
+          "text": "重构 screenshot service"
+        }
+      ],
+      "completedCount": 4,
+      "pendingCount": 1
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 11,
+    "totalTrackedMinutes": 473,
+    "diaryEntryCount": 0,
+    "flashTodayCount": 3,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 6,
+    "quizCorrectRate": 53,
+    "taskCompletedCount": 4,
+    "taskPendingCount": 1,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "兴奋",
+    "dailyMoodScore": 5
+  }
+}

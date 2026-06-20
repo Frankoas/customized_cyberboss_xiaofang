@@ -1,0 +1,178 @@
+{
+  "date": "2026-06-08",
+  "generatedAt": "2026-06-08T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 13,
+      "totalMinutes": 404,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 2,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "充实",
+        "mood_score": 4
+      }
+    },
+    "flash": {
+      "total": 48,
+      "inboxCount": 7,
+      "todayCount": 3,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-08_001",
+          "rawText": "考虑把 vault 搬到 iCloud 同步",
+          "cleanedText": "考虑把 vault 搬到 iCloud 同步",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        },
+        {
+          "id": "fm_2026-06-08_002",
+          "rawText": "在 timeline 上加一个本周目标进度条",
+          "cleanedText": "在 timeline 上加一个本周目标进度条",
+          "category": "todo",
+          "mood": "playful",
+          "tags": [
+            "娱乐",
+            "电影"
+          ]
+        },
+        {
+          "id": "fm_2026-06-08_003",
+          "rawText": "大构思的追问能不能用语音回答",
+          "cleanedText": "大构思的追问能不能用语音回答",
+          "category": "learning",
+          "mood": "anxious",
+          "tags": [
+            "工具",
+            "效率"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 1,
+        "curious": 2,
+        "determined": 1,
+        "playful": 1,
+        "anxious": 0
+      },
+      "byCategory": {
+        "idea": 1,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 124,
+      "overallCorrectRate": 0.72,
+      "todayCount": 4,
+      "todayCorrect": 4,
+      "todayTotal": 4,
+      "todayCorrectRate": 92,
+      "todayRecords": [
+        {
+          "itemId": "quiz_7",
+          "title": "SPI时序",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-08T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_8",
+          "title": "I2C仲裁",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-08T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_9",
+          "title": "看门狗",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-08T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_10",
+          "title": "能带理论",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-08T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-08_0",
+          "text": "写完 v0.3.0 周总结模板"
+        },
+        {
+          "id": "task_2026-06-08_1",
+          "text": "修了 Timeline 重叠 bug"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-08_0",
+          "text": "重构 screenshot service"
+        },
+        {
+          "id": "task_pending_2026-06-08_1",
+          "text": "给知识库加10道题"
+        }
+      ],
+      "completedCount": 2,
+      "pendingCount": 2
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 13,
+    "totalTrackedMinutes": 404,
+    "diaryEntryCount": 2,
+    "flashTodayCount": 3,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 4,
+    "quizCorrectRate": 92,
+    "taskCompletedCount": 2,
+    "taskPendingCount": 2,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "充实",
+    "dailyMoodScore": 4
+  }
+}

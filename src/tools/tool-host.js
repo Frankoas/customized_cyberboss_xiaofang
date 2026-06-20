@@ -475,8 +475,8 @@ const PROJECT_TOOLS = [
       properties: {
         action: {
           type: "string",
-          description: "Action: generate (create a daily summary), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate), attach_screenshot (embed a screenshot image into the summary MD file), generate_weekly (aggregate 7 days into a weekly summary), generate_monthly (aggregate the month into a monthly summary).",
-          enum: ["generate", "status", "append_plan", "finalize", "read", "check", "attach_screenshot", "generate_weekly", "generate_monthly"],
+          description: "Action: generate (create a daily summary), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate), attach_screenshot (embed a screenshot image into the summary MD file), generate_weekly (aggregate 7 days into a weekly summary), generate_monthly (aggregate the month into a monthly summary), generate_daily_timeline (render daily-timeline.html template with timeline events — use this for 当日时间轴 screenshots).",
+          enum: ["generate", "status", "append_plan", "finalize", "read", "check", "attach_screenshot", "generate_weekly", "generate_monthly", "generate_daily_timeline"],
         },
         date: { type: "string", description: "[all] Target date in YYYY-MM-DD. Defaults to today." },
         format: { type: "string", description: "[generate] Output format: full (complete summary with all sections) or brief (stats-only)." },
@@ -607,6 +607,13 @@ const PROJECT_TOOLS = [
           const result = await svc.generateMonthlySummary({ date: args.date });
           return {
             text: `Monthly summary generated for ${result.monthLabel}. ${result.dailyCount} days tracked. Stats: ${result.stats.eventCount} events, ${result.stats.flashCount} flashes, ${result.stats.quizCount} quiz items, ${result.stats.quizRate}% correct. HTML: ${result.savedPaths.htmlFile}`,
+            data: result,
+          };
+        }
+        case "generate_daily_timeline": {
+          const result = await svc.generateDailyTimelineHtml({ date: args.date });
+          return {
+            text: `Daily timeline HTML generated for ${result.date}. ${result.stats.eventCount} events, ${result.stats.totalHours}h tracked, ${result.stats.categoryCount} categories. HTML: ${result.htmlFile}`,
             data: result,
           };
         }
@@ -1140,7 +1147,7 @@ const PROJECT_TOOLS = [
   },
   {
     name: "cyberboss_timeline_screenshot",
-    description: "Capture a timeline dashboard screenshot and send it back to the current WeChat chat. ONLY for the timeline dashboard — do NOT use for summary HTML files.",
+    description: "Capture a timeline screenshot and send it to WeChat. DEFAULT (no range, or range=day): renders the new unified daily-timeline.html template (420px mobile, high-contrast category dots, vertical timeline). For week/month views: uses the timeline dashboard site (1024px desktop). Input: { userId?, outputFile?, range?, date?, week?, month?, category?, subcategory?, width?, height?, sidePadding?, locale?, fullPage? }",
     shortHint: "Capture a timeline dashboard screenshot.",
     topics: ["timeline"],
     inputSchema: {
@@ -1166,7 +1173,41 @@ const PROJECT_TOOLS = [
       const { ScreenshotService } = require("../services/screenshot-service");
       const screenshotter = new ScreenshotService({ config: services.timeline?.config || {} });
 
-      // Timeline dashboard mode: serve the built timeline site
+      // ── Daily (default) — use the new unified daily-timeline.html template ──
+      const range = args.range || "";
+      const hasDate = !!(args.date || args.week || args.month);
+      const isDaily = !range || range === "day" || (!hasDate && !range);
+
+      if (isDaily) {
+        const { DailySummaryService } = require("../services/daily-summary-service");
+        if (!services._dailySummary) {
+          const cfg = services.diary?.config || services.timeline?.config || {};
+          services._dailySummary = new DailySummaryService({
+            config: cfg,
+            services: {
+              timeline: services.timeline,
+              diary: services.diary,
+              flashMemory: services.flashMemory,
+              knowledge: services.knowledge,
+            },
+          });
+        }
+        const result = await services._dailySummary.generateDailyTimelineHtml({ date: args.date });
+        const captured = await screenshotter.capture({
+          htmlFile: result.htmlFile,
+          outputFile: args.outputFile,
+          width: 420, height: 900, fullPage: true,
+        });
+        const delivery = await services.channelFile.sendToCurrentChat({
+          userId: args.userId, filePath: captured.outputFile,
+        }, context).catch((err) => ({ error: err.message }));
+        return {
+          text: `Daily timeline screenshot: ${captured.outputFile} (${result.stats.eventCount} events, ${result.stats.totalHours}h, ${result.stats.categoryCount} categories)`,
+          data: { ...captured, delivery, timelineStats: result.stats },
+        };
+      }
+
+      // ── Week / Month — use the timeline dashboard site ──
       const siteDir = path.join(
         services.timeline?.config?.stateDir || path.join(os.homedir(), ".cyberboss"),
         "timeline", "site"
@@ -1174,7 +1215,7 @@ const PROJECT_TOOLS = [
       const captured = await screenshotter.capture({
         siteDir,
         outputFile: args.outputFile,
-        width: args.width || 420,
+        width: args.width || 1024,
         height: args.height || 900,
         fullPage: args.fullPage !== false,
       });

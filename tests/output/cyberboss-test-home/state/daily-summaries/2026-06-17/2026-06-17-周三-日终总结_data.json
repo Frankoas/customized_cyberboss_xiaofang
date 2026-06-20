@@ -1,0 +1,146 @@
+{
+  "date": "2026-06-17",
+  "generatedAt": "2026-06-17T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 11,
+      "totalMinutes": 600,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 3,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "平静",
+        "mood_score": 3
+      }
+    },
+    "flash": {
+      "total": 46,
+      "inboxCount": 9,
+      "todayCount": 1,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-17_001",
+          "rawText": "给 Cyberboss 加一个喝水提醒功能",
+          "cleanedText": "给 Cyberboss 加一个喝水提醒功能",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 1,
+        "curious": 0,
+        "determined": 0,
+        "playful": 0,
+        "anxious": 0
+      },
+      "byCategory": {
+        "idea": 0,
+        "dev": 0,
+        "life": 0,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 125,
+      "overallCorrectRate": 0.72,
+      "todayCount": 5,
+      "todayCorrect": 3,
+      "todayTotal": 5,
+      "todayCorrectRate": 56,
+      "todayRecords": [
+        {
+          "itemId": "quiz_20",
+          "title": "费米能级",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-17T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_0",
+          "title": "肖特基接触",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-17T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_1",
+          "title": "MOSFET阈值电压",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-17T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_2",
+          "title": "中断优先级",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-17T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_3",
+          "title": "ADC采样",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-17T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [],
+      "pending": [],
+      "completedCount": 0,
+      "pendingCount": 0
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 11,
+    "totalTrackedMinutes": 600,
+    "diaryEntryCount": 3,
+    "flashTodayCount": 1,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 5,
+    "quizCorrectRate": 56,
+    "taskCompletedCount": 0,
+    "taskPendingCount": 0,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "平静",
+    "dailyMoodScore": 3
+  }
+}

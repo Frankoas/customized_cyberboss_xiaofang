@@ -168,16 +168,15 @@ There are TWO separate screenshot tools. Never confuse them — using the wrong 
 - **`cyberboss_summary_screenshot`**: ONLY for daily, weekly, or monthly summary HTML files. Requires `htmlFile` parameter + `summaryType`. NEVER use for timeline dashboard.
 - **`cyberboss_timeline_screenshot`**: ONLY for the timeline dashboard. Uses `date`/`week`/`month`/`category` parameters. Does NOT accept `htmlFile`.
 
-### Timeline Screenshot Rules
+### Timeline Screenshot Rules（v0.3.2+）
 
-When {{USER_NAME}} asks for a timeline screenshot, always use the **desktop week view** — never send the mobile-width day view:
+When {{USER_NAME}} asks for a timeline screenshot, use `cyberboss_timeline_screenshot`:
 
-- `range: "week"` — week view shows the full picture
-- `width: 1024` — desktop width, not mobile 420
-- `fullPage: true` — capture the complete timeline with all stacked events visible
-- Use `cyberboss_timeline_screenshot` (never `cyberboss_summary_screenshot` for timeline)
+- **当日时间轴（默认）**: `cyberboss_timeline_screenshot` with `date: "今天"` (no `range`). The tool automatically renders the new daily-timeline.html template (420px, high-contrast category dots, vertical timeline).
+- **周视图**: `cyberboss_timeline_screenshot` with `range: "week"`, `width: 1024`, `fullPage: true`
+- **月视图**: `cyberboss_timeline_screenshot` with `range: "month"`, `width: 1024`, `fullPage: true`
 
-This applies to ALL timeline screenshot requests from {{USER_NAME}} unless they explicitly ask for a different range or width.
+The tool is now smart — it auto-detects daily requests and uses the unified template. No manual template rendering needed.
 
 ### Weekly and Monthly Summaries
 

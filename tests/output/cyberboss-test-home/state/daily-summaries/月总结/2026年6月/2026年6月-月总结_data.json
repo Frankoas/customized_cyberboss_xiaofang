@@ -1,0 +1,428 @@
+{
+  "monthLabel": "2026年6月",
+  "dailyCount": 21,
+  "eventCount": 216,
+  "totalMinutes": 8231,
+  "trackedHours": 137,
+  "flashCount": 67,
+  "quizCount": 85,
+  "diaryCount": 31,
+  "taskCompleted": 43,
+  "quizRate": 75,
+  "heatmapSection": {
+    "days": [
+      {
+        "date": "2026-06-01",
+        "dayNum": 1,
+        "hours": 8,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-02",
+        "dayNum": 2,
+        "hours": 9,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-03",
+        "dayNum": 3,
+        "hours": 10,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-04",
+        "dayNum": 4,
+        "hours": 9,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-05",
+        "dayNum": 5,
+        "hours": 8,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-06",
+        "dayNum": 6,
+        "hours": 1,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-07",
+        "dayNum": 7,
+        "hours": 1,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-08",
+        "dayNum": 8,
+        "hours": 7,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-09",
+        "dayNum": 9,
+        "hours": 8,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-10",
+        "dayNum": 10,
+        "hours": 10,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-11",
+        "dayNum": 11,
+        "hours": 10,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-12",
+        "dayNum": 12,
+        "hours": 9,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-13",
+        "dayNum": 13,
+        "hours": 2,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-14",
+        "dayNum": 14,
+        "hours": 1,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-15",
+        "dayNum": 15,
+        "hours": 8,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-16",
+        "dayNum": 16,
+        "hours": 9,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-17",
+        "dayNum": 17,
+        "hours": 10,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-18",
+        "dayNum": 18,
+        "hours": 9,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-19",
+        "dayNum": 19,
+        "hours": 8,
+        "color": "#1a5dc4"
+      },
+      {
+        "date": "2026-06-20",
+        "dayNum": 20,
+        "hours": 1,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-21",
+        "dayNum": 21,
+        "hours": 1,
+        "color": "var(--accent-soft)"
+      },
+      {
+        "date": "2026-06-22",
+        "dayNum": 22,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-23",
+        "dayNum": 23,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-24",
+        "dayNum": 24,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-25",
+        "dayNum": 25,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-26",
+        "dayNum": 26,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-27",
+        "dayNum": 27,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-28",
+        "dayNum": 28,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-29",
+        "dayNum": 29,
+        "hours": 0,
+        "color": "var(--paper)"
+      },
+      {
+        "date": "2026-06-30",
+        "dayNum": 30,
+        "hours": 0,
+        "color": "var(--paper)"
+      }
+    ]
+  },
+  "moodSection": {
+    "moods": [
+      {
+        "label": "excited",
+        "count": 21,
+        "pct": 16
+      },
+      {
+        "label": "determined",
+        "count": 14,
+        "pct": 11
+      },
+      {
+        "label": "anxious",
+        "count": 12,
+        "pct": 9
+      },
+      {
+        "label": "curious",
+        "count": 10,
+        "pct": 8
+      },
+      {
+        "label": "playful",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "充实",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "开心",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "平静",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "焦虑",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "兴奋",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "疲惫",
+        "count": 9,
+        "pct": 7
+      },
+      {
+        "label": "一般",
+        "count": 9,
+        "pct": 7
+      }
+    ]
+  },
+  "quizSection": {
+    "topics": [
+      {
+        "name": "肖特基接触",
+        "count": 12
+      },
+      {
+        "name": "费米能级",
+        "count": 11
+      },
+      {
+        "name": "MOSFET阈值电压",
+        "count": 11
+      },
+      {
+        "name": "中断优先级",
+        "count": 10
+      },
+      {
+        "name": "PN结",
+        "count": 8
+      },
+      {
+        "name": "ADC采样",
+        "count": 7
+      },
+      {
+        "name": "能带理论",
+        "count": 6
+      },
+      {
+        "name": "SPI时序",
+        "count": 4
+      },
+      {
+        "name": "I2C仲裁",
+        "count": 3
+      },
+      {
+        "name": "看门狗",
+        "count": 3
+      }
+    ]
+  },
+  "ideaSection": {
+    "draftCount": 2,
+    "activeSessions": 1,
+    "completedSessions": 1,
+    "refinedCount": 2,
+    "drafts": [
+      {
+        "title": "爱是虚拟的",
+        "status": "completed",
+        "statusIcon": "✅"
+      },
+      {
+        "title": "沉没意志",
+        "status": "in_progress",
+        "statusIcon": "🔄"
+      }
+    ]
+  },
+  "flashSection": {
+    "items": [
+      {
+        "text": "用 LLM 做个人知识图谱的自动构建",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "把每日总结的时间热力图改成日历视图",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "给 Cyberboss 加一个喝水提醒功能",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "把每日总结的时间热力图改成日历视图",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "给 Cyberboss 加一个喝水提醒功能",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "应该把闪存按情绪自动聚类到 Obsidian",
+        "category": "learning",
+        "mood": "anxious"
+      },
+      {
+        "text": "周末想去看《沙丘3》",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "应该把闪存按情绪自动聚类到 Obsidian",
+        "category": "learning",
+        "mood": "anxious"
+      },
+      {
+        "text": "通勤刷题能不能加个错题本模式",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "应该把闪存按情绪自动聚类到 Obsidian",
+        "category": "learning",
+        "mood": "anxious"
+      },
+      {
+        "text": "通勤刷题能不能加个错题本模式",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "感觉到周总结比日总结更有洞察价值",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "考虑把 vault 搬到 iCloud 同步",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "通勤刷题能不能加个错题本模式",
+        "category": "idea",
+        "mood": "excited"
+      },
+      {
+        "text": "感觉到周总结比日总结更有洞察价值",
+        "category": "dev",
+        "mood": "curious"
+      },
+      {
+        "text": "考虑把 vault 搬到 iCloud 同步",
+        "category": "life",
+        "mood": "determined"
+      },
+      {
+        "text": "在 timeline 上加一个本周目标进度条",
+        "category": "todo",
+        "mood": "playful"
+      },
+      {
+        "text": "感觉到周总结比日总结更有洞察价值",
+        "category": "dev",
+        "mood": "curious"
+      }
+    ]
+  },
+  "ideaCount": 2,
+  "generatedAt": "2026-06-20T09:42:16.184Z"
+}

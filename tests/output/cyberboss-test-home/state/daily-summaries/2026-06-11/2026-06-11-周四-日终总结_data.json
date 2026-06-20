@@ -1,0 +1,176 @@
+{
+  "date": "2026-06-11",
+  "generatedAt": "2026-06-11T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 6,
+      "totalMinutes": 599,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 3,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "焦虑",
+        "mood_score": 2
+      }
+    },
+    "flash": {
+      "total": 49,
+      "inboxCount": 7,
+      "todayCount": 4,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-11_001",
+          "rawText": "用 LLM 做个人知识图谱的自动构建",
+          "cleanedText": "用 LLM 做个人知识图谱的自动构建",
+          "category": "idea",
+          "mood": "excited",
+          "tags": [
+            "AI",
+            "知识图谱"
+          ]
+        },
+        {
+          "id": "fm_2026-06-11_002",
+          "rawText": "把每日总结的时间热力图改成日历视图",
+          "cleanedText": "把每日总结的时间热力图改成日历视图",
+          "category": "dev",
+          "mood": "curious",
+          "tags": [
+            "前端",
+            "可视化"
+          ]
+        },
+        {
+          "id": "fm_2026-06-11_003",
+          "rawText": "给 Cyberboss 加一个喝水提醒功能",
+          "cleanedText": "给 Cyberboss 加一个喝水提醒功能",
+          "category": "life",
+          "mood": "determined",
+          "tags": [
+            "生活",
+            "健康"
+          ]
+        },
+        {
+          "id": "fm_2026-06-11_004",
+          "rawText": "周末想去看《沙丘3》",
+          "cleanedText": "周末想去看《沙丘3》",
+          "category": "todo",
+          "mood": "playful",
+          "tags": [
+            "娱乐",
+            "电影"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 0,
+        "curious": 0,
+        "determined": 1,
+        "playful": 0,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 2,
+        "dev": 1,
+        "life": 1,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 123,
+      "overallCorrectRate": 0.72,
+      "todayCount": 3,
+      "todayCorrect": 2,
+      "todayTotal": 3,
+      "todayCorrectRate": 57,
+      "todayRecords": [
+        {
+          "itemId": "quiz_16",
+          "title": "能带理论",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-11T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_17",
+          "title": "PN结",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-11T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_18",
+          "title": "费米能级",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-11T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [],
+      "pending": [],
+      "completedCount": 0,
+      "pendingCount": 0
+    },
+    "ideas": {
+      "draftCount": 2,
+      "drafts": [
+        {
+          "title": "爱是虚拟的",
+          "status": "completed",
+          "refinedLink": "[[爱是虚拟的-20260620-完善]]",
+          "lastModified": "2026-06-11"
+        },
+        {
+          "title": "沉没意志",
+          "status": "in_progress",
+          "refinedLink": null,
+          "lastModified": "2026-06-11"
+        }
+      ],
+      "activeSessions": 1,
+      "completedSessions": 1,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 6,
+    "totalTrackedMinutes": 599,
+    "diaryEntryCount": 3,
+    "flashTodayCount": 4,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 3,
+    "quizCorrectRate": 57,
+    "taskCompletedCount": 0,
+    "taskPendingCount": 0,
+    "ideaDraftCount": 2,
+    "ideaActiveSessions": 1,
+    "ideaCompletedSessions": 1,
+    "ideaRefinedCount": 2,
+    "dailyMood": "焦虑",
+    "dailyMoodScore": 2
+  }
+}

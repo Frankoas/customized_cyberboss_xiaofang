@@ -1,0 +1,160 @@
+{
+  "date": "2026-06-09",
+  "generatedAt": "2026-06-09T22:30:00+08:00",
+  "format": "full",
+  "sections": {
+    "timeline": {
+      "exists": true,
+      "eventCount": 16,
+      "totalMinutes": 494,
+      "categorized": [],
+      "events": []
+    },
+    "diary": {
+      "exists": true,
+      "entryCount": 2,
+      "entries": [],
+      "rawText": "",
+      "mood": {
+        "mood": "开心",
+        "mood_score": 5
+      }
+    },
+    "flash": {
+      "total": 46,
+      "inboxCount": 6,
+      "todayCount": 1,
+      "todayItems": [
+        {
+          "id": "fm_2026-06-09_001",
+          "rawText": "在 timeline 上加一个本周目标进度条",
+          "cleanedText": "在 timeline 上加一个本周目标进度条",
+          "category": "todo",
+          "mood": "playful",
+          "tags": [
+            "娱乐",
+            "电影"
+          ]
+        }
+      ],
+      "byMood": {
+        "excited": 0,
+        "curious": 2,
+        "determined": 0,
+        "playful": 0,
+        "anxious": 1
+      },
+      "byCategory": {
+        "idea": 0,
+        "dev": 0,
+        "life": 0,
+        "todo": 0
+      }
+    },
+    "flashQa": {
+      "qaCount": 0,
+      "qaItems": []
+    },
+    "capsules": {
+      "capsuleCount": 0,
+      "capsules": []
+    },
+    "quiz": {
+      "exists": true,
+      "overallTotalAnswers": 128,
+      "overallCorrectRate": 0.72,
+      "todayCount": 8,
+      "todayCorrect": 4,
+      "todayTotal": 8,
+      "todayCorrectRate": 51,
+      "todayRecords": [
+        {
+          "itemId": "quiz_17",
+          "title": "I2C仲裁",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-09T08:15:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_18",
+          "title": "看门狗",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-09T08:20:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        },
+        {
+          "itemId": "quiz_19",
+          "title": "能带理论",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-09T08:25:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_20",
+          "title": "PN结",
+          "category": "单片机原理与应用",
+          "lastAnsweredAt": "2026-06-09T08:30:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 0
+        },
+        {
+          "itemId": "quiz_0",
+          "title": "费米能级",
+          "category": "半导体物理",
+          "lastAnsweredAt": "2026-06-09T08:35:00+08:00",
+          "attemptCount": 1,
+          "correctCount": 1
+        }
+      ]
+    },
+    "tasks": {
+      "completed": [
+        {
+          "id": "task_2026-06-09_0",
+          "text": "写完 v0.3.0 周总结模板"
+        }
+      ],
+      "pending": [
+        {
+          "id": "task_pending_2026-06-09_0",
+          "text": "重构 screenshot service"
+        },
+        {
+          "id": "task_pending_2026-06-09_1",
+          "text": "给知识库加10道题"
+        }
+      ],
+      "completedCount": 1,
+      "pendingCount": 2
+    },
+    "ideas": {
+      "draftCount": 0,
+      "drafts": [],
+      "activeSessions": 0,
+      "completedSessions": 0,
+      "refinedCount": 2
+    }
+  },
+  "stats": {
+    "eventCount": 16,
+    "totalTrackedMinutes": 494,
+    "diaryEntryCount": 2,
+    "flashTodayCount": 1,
+    "flashInboxCount": 8,
+    "flashQaCount": 0,
+    "capsuleCount": 0,
+    "quizTodayCount": 8,
+    "quizCorrectRate": 51,
+    "taskCompletedCount": 1,
+    "taskPendingCount": 2,
+    "ideaDraftCount": 0,
+    "ideaActiveSessions": 0,
+    "ideaCompletedSessions": 0,
+    "ideaRefinedCount": 2,
+    "dailyMood": "开心",
+    "dailyMoodScore": 5
+  }
+}

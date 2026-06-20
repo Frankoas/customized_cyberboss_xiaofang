@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周总结 · 2026-W25</title>
+<style>
+  :root {
+    --paper: oklch(0.970 0.012 75);
+    --paper-2: oklch(0.988 0.008 80);
+    --paper-edge: oklch(0.945 0.014 70);
+    --ink: oklch(0.305 0.018 55);
+    --ink-2: oklch(0.480 0.014 58);
+    --ink-3: oklch(0.680 0.012 62);
+    --ink-4: oklch(0.820 0.010 68);
+    --rule: oklch(0.880 0.014 65);
+    --rule-soft: oklch(0.935 0.012 70);
+    --accent: #2f7af8;
+    --accent-soft: #a0c4ff;
+    --shadow-sm: 0 1px 3px oklch(0.30 0.02 55 / 0.08);
+    --cat-life: #F4E7CE; --cat-life-ink: #6d5a2d;
+    --cat-work: #BEDAE3; --cat-work-ink: #3d5a64;
+    --cat-study: #C4D4B1; --cat-study-ink: #4d5b3a;
+    --cat-exercise: #F3EA93; --cat-exercise-ink: #6b6426;
+    --cat-entertainment: #FFD1DB; --cat-entertainment-ink: #7a3e4c;
+    --cat-health: #C4D4B1; --cat-health-ink: #4d5b3a;
+    --cat-social: #D3C7E6; --cat-social-ink: #4b4266;
+    --cat-care: #ECD5E3; --cat-care-ink: #6a4458;
+    --cat-travel: #F1B598; --cat-travel-ink: #6d3a1e;
+    --cat-rest: #FDECDF; --cat-rest-ink: #7a5a40;
+    --font-sans: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --font-serif: "Songti SC", "Noto Serif CJK SC", serif;
+    --text-xs: 12px; --text-sm: 13px; --text-md: 14px;
+    --text-lg: 17px; --text-xl: 22px;
+    --page-width: 420px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    color: var(--ink);
+    background: var(--paper);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+  }
+
+  .page {
+    width: 100%;
+    max-width: var(--page-width);
+    background: var(--paper-2);
+    box-shadow: var(--shadow-sm);
+    min-height: 100vh;
+    padding: 28px 24px 36px;
+  }
+
+  /* Hero */
+  .hero { text-align: center; padding: 24px 0 16px; border-bottom: 2px solid var(--rule); margin-bottom: 20px; }
+  .hero-icon { font-size: 36px; margin-bottom: 6px; }
+  .hero-title { font-family: var(--font-serif); font-size: var(--text-xl); font-weight: 700; color: var(--ink); }
+  .hero-sub { font-size: var(--text-sm); color: var(--ink-3); margin-top: 4px; }
+
+  /* Stat grid — 2 columns with overflow protection */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .stat-card { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 10px; padding: 10px 6px; text-align: center; min-width: 0; overflow: hidden; }
+  .stat-num { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--accent); word-break: break-all; }
+  .stat-label { font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; }
+
+  /* Sections */
+  .section { margin-bottom: 22px; }
+  .section-title { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--rule-soft); padding-bottom: 6px; margin-bottom: 12px; }
+  .section-title .icon { margin-right: 6px; }
+
+  /* Events list */
+  .event-list { list-style: none; }
+  .event-item { display: flex; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--rule-soft); font-size: var(--text-xs); }
+  .event-time { color: var(--ink-3); font-family: var(--font-sans); min-width: 56px; }
+  .event-title { color: var(--ink-2); margin-left: 8px; flex: 1; }
+  .event-dur { color: var(--ink-4); margin-left: auto; white-space: nowrap; }
+
+  /* Flash items */
+  .flash-item { padding: 8px 0; border-bottom: 1px solid var(--rule-soft); font-size: var(--text-sm); }
+  .flash-mood { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; margin-left: 6px; }
+  .flash-cat { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; margin-left: 4px; background: var(--paper); color: var(--ink-2); }
+
+  /* Mood bar */
+  .mood-row { display: flex; align-items: center; margin: 4px 0; font-size: var(--text-xs); }
+  .mood-label { width: 48px; color: var(--ink-2); }
+  .mood-bar-wrap { flex: 1; height: 14px; background: var(--paper); border-radius: 7px; overflow: hidden; }
+  .mood-bar { height: 100%; border-radius: 7px; background: var(--accent); opacity: 0.7; }
+
+  /* Quiz */
+  .quiz-stat { font-size: var(--text-sm); color: var(--ink-2); margin: 4px 0; }
+
+  /* Empty state */
+  .empty { color: var(--ink-4); font-size: var(--text-xs); font-style: italic; }
+
+  /* Footer */
+  .footer { text-align: center; color: var(--ink-4); font-size: 11px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">📊</div>
+    <div class="hero-title">周总结 · 2026-W25</div>
+    <div class="hero-sub">6月15日 - 6月21日</div>
+  </div>
+
+  <!-- Stat grid -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">追踪天数</div></div>
+    <div class="stat-card"><div class="stat-num">46</div><div class="stat-label">追踪小时</div></div>
+    <div class="stat-card"><div class="stat-num">73</div><div class="stat-label">时间轴事件</div></div>
+    <div class="stat-card"><div class="stat-num">21</div><div class="stat-label">闪存灵感</div></div>
+    <div class="stat-card"><div class="stat-num">30</div><div class="stat-label">答题数</div></div>
+    <div class="stat-card"><div class="stat-num">67%</div><div class="stat-label">答题正确率</div></div>
+  </div>
+
+  <!-- 1. Time allocation -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⏱</span>本周时间分配</div>
+    
+    <div class="empty">本周暂无时间轴记录</div>
+    
+  </div>
+
+  <!-- 2. Mood spectrum -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎭</span>本周情绪光谱</div>
+    
+    
+    <div class="mood-row">
+      <span class="mood-label">excited</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:14%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">6次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">determined</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:12%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">5次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">playful</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:10%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">4次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">curious</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">anxious</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">充实</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">开心</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">平静</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">焦虑</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">兴奋</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">疲惫</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+
+    <div class="mood-row">
+      <span class="mood-label">一般</span>
+      <div class="mood-bar-wrap"><div class="mood-bar" style="width:7%"></div></div>
+      <span style="margin-left:6px;color:var(--ink-3);font-size:11px">3次</span>
+    </div>
+    
+    
+  </div>
+
+  <!-- 3. Flash highlights -->
+  <div class="section">
+    <div class="section-title"><span class="icon">💡</span>本周闪存亮点</div>
+    
+    
+    <div class="flash-item">用 LLM 做个人知识图谱的自动构建<span class="flash-cat">idea</span><span class="flash-mood">excited</span></div>
+    
+
+    <div class="flash-item">把每日总结的时间热力图改成日历视图<span class="flash-cat">dev</span><span class="flash-mood">curious</span></div>
+    
+
+    <div class="flash-item">给 Cyberboss 加一个喝水提醒功能<span class="flash-cat">life</span><span class="flash-mood">determined</span></div>
+    
+
+    <div class="flash-item">周末想去看《沙丘3》<span class="flash-cat">todo</span><span class="flash-mood">playful</span></div>
+    
+
+    <div class="flash-item">把每日总结的时间热力图改成日历视图<span class="flash-cat">dev</span><span class="flash-mood">curious</span></div>
+    
+
+    <div class="flash-item">给 Cyberboss 加一个喝水提醒功能<span class="flash-cat">life</span><span class="flash-mood">determined</span></div>
+    
+
+    <div class="flash-item">周末想去看《沙丘3》<span class="flash-cat">todo</span><span class="flash-mood">playful</span></div>
+    
+
+    <div class="flash-item">给 Cyberboss 加一个喝水提醒功能<span class="flash-cat">life</span><span class="flash-mood">determined</span></div>
+    
+
+    <div class="flash-item">周末想去看《沙丘3》<span class="flash-cat">todo</span><span class="flash-mood">playful</span></div>
+    
+
+    <div class="flash-item">应该把闪存按情绪自动聚类到 Obsidian<span class="flash-cat">learning</span><span class="flash-mood">anxious</span></div>
+    
+
+    <div class="flash-item">应该把闪存按情绪自动聚类到 Obsidian<span class="flash-cat">learning</span><span class="flash-mood">anxious</span></div>
+    
+
+    <div class="flash-item">通勤刷题能不能加个错题本模式<span class="flash-cat">idea</span><span class="flash-mood">excited</span></div>
+    
+
+    <div class="flash-item">感觉到周总结比日总结更有洞察价值<span class="flash-cat">dev</span><span class="flash-mood">curious</span></div>
+    
+
+    <div class="flash-item">通勤刷题能不能加个错题本模式<span class="flash-cat">idea</span><span class="flash-mood">excited</span></div>
+    
+
+    <div class="flash-item">感觉到周总结比日总结更有洞察价值<span class="flash-cat">dev</span><span class="flash-mood">curious</span></div>
+    
+    
+  </div>
+
+  <!-- 4. Learning progress -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🧠</span>本周学习进展</div>
+    
+    <div class="quiz-stat">📖 总答题 30 题 · 正确率 67%</div>
+    <div class="quiz-stat">🏷️ {{.}} 
+{{.}} 
+{{.}} 
+{{.}} 
+{{.}} 
+{{.}} 
+{{.}} 
+{{.}} 
+{{.}} </div>
+    
+  </div>
+
+  <!-- 5. Completed tasks -->
+  <div class="section">
+    <div class="section-title"><span class="icon">✅</span>本周完成事项</div>
+    
+    <div class="empty">本周暂无完成事项记录</div>
+    
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">🤖 由 Cyberboss v0.3.0 自动生成 · 2026-W25</div>
+
+</div>
+</body>
+</html>

@@ -1877,6 +1877,130 @@ class DailySummaryService {
     }
     return null;
   }
+
+  /**
+   * Generate a standalone daily timeline HTML page with the unified
+   * daily-timeline.html template.  Reads timeline events via the injected
+   * timeline service, computes per-category stats, renders the template
+   * with high-contrast category dots, and writes the result to a temp file.
+   * @returns {{ htmlContent, htmlFile, date, stats }}
+   */
+  async generateDailyTimelineHtml({ date = "" } = {}) {
+    const dateLabel = date || formatDate(new Date());
+    const homeDir = process.env.CYBERBOSS_HOME || path.join(__dirname, "..", "..");
+    const templatePath = path.join(homeDir, "templates", "daily-timeline.html");
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+    const template = fs.readFileSync(templatePath, "utf8");
+
+    // Read timeline events
+    let events = [];
+    let totalMinutes = 0;
+    try {
+      const result = await this.services.timeline?.read({ date: dateLabel });
+      events = result?.data?.events || [];
+    } catch { /* best-effort */ }
+
+    // Empty-day fallback
+    if (!events || !events.length) {
+      const now = new Date();
+      let html = template
+        .split("{{date}}").join(dateLabel)
+        .split("{{dateLabel}}").join(`${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`)
+        .split("{{weekday}}").join(getDayOfWeekChinese(dateLabel))
+        .split("{{eventCount}}").join("0").split("{{totalHours}}").join("0")
+        .split("{{categoryCount}}").join("0").split("{{avgEvent}}").join("0")
+        .split("{{catSegments}}").join("").split("{{catLegend}}").join("")
+        .split("{{eventItems}}").join('<div class="empty">今日无时间轴记录</div>');
+      html = html.replace(/\{\{#catBar\}\}/g, "").replace(/\{\{\/catBar\}\}/g, "");
+      return { htmlContent: html, htmlFile: this._writeTimelineHtml(dateLabel, html), date: dateLabel,
+        stats: { eventCount: 0, totalHours: 0, categoryCount: 0, avgEvent: 0 } };
+    }
+
+    // Per-category minutes
+    const catMin = {};
+    for (const e of events) {
+      const cat = e.categoryId || "other";
+      const dur = e._durationMinutes || 0;
+      if (dur > 0) { catMin[cat] = (catMin[cat] || 0) + dur; totalMinutes += dur; }
+    }
+    const totalHours = Math.round(totalMinutes / 60);
+    const categoryCount = Object.keys(catMin).length;
+    const avgEvent = events.length > 0 ? Math.round(totalMinutes / events.length) : 0;
+
+    // High-contrast category palette (on oklch paper background)
+    const PALETTE = {
+      work:          { bg: "#1a5dc4", label: "工作" },
+      life:          { bg: "#d4920b", label: "生活" },
+      study:         { bg: "#2d8c3c", label: "学习" },
+      travel:        { bg: "#c7451a", label: "通勤" },
+      rest:          { bg: "#7b5ea7", label: "休息" },
+      exercise:      { bg: "#e0552a", label: "运动" },
+      entertainment: { bg: "#c7255c", label: "娱乐" },
+      health:        { bg: "#1d8c7a", label: "健康" },
+      social:        { bg: "#6a3eb5", label: "社交" },
+      care:          { bg: "#b84578", label: "护理" },
+      other:         { bg: "#8899aa", label: "其他" },
+    };
+
+    const sortedCats = Object.entries(catMin).sort((a, b) => b[1] - a[1]);
+    const catSegments = sortedCats.map(([cat, min]) => {
+      const pct = Math.round((min / Math.max(totalMinutes, 1)) * 100);
+      const c = PALETTE[cat] || PALETTE.other;
+      return `<div class="cat-bar-seg" style="width:${pct}%;background:${c.bg}" title="${c.label}: ${Math.round(min / 60)}h"></div>`;
+    }).join("");
+
+    const catLegend = sortedCats.map(([cat, min]) => {
+      const c = PALETTE[cat] || PALETTE.other;
+      return `<span class="cat-legend-item"><span class="cat-legend-dot" style="background:${c.bg}"></span>${c.label} ${Math.round(min / 60)}h</span>`;
+    }).join("");
+
+    const eventItems = events.map((e) => {
+      const cat = e.categoryId || "other";
+      const c = PALETTE[cat] || PALETTE.other;
+      const st = e.startAt ? e.startAt.slice(11, 16) : "??:??";
+      const et = e.endAt   ? e.endAt.slice(11, 16)   : "??:??";
+      const dm = e._durationMinutes || 0;
+      let ds = "";
+      if (dm >= 60) { const hh = Math.floor(dm / 60); const mm = dm % 60; ds = mm ? `${hh}h${mm}m` : `${hh}h`; }
+      else if (dm > 0) ds = `${dm}分钟`;
+      const title = this._escapeHtml(e.title || e.eventNodeId || "—");
+      const note = (e.note || e.description || "").slice(0, 60);
+      return `<div class="tl-item"><div class="tl-dot cat-${cat}" style="background:${c.bg}"></div><div class="tl-body"><div class="tl-header"><span class="tl-time">${st} - ${et}</span><span class="tl-dur">${ds}</span></div><div class="tl-title">${title}</div>${note ? `<div class="tl-note">${note}</div>` : ""}<span class="tl-cat-tag" style="background:${c.bg}20;color:${c.bg}">${c.label}</span></div></div>`;
+    }).join("");
+
+    const now = new Date();
+    let html = template
+      .split("{{date}}").join(dateLabel)
+      .split("{{dateLabel}}").join(`${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`)
+      .split("{{weekday}}").join(getDayOfWeekChinese(dateLabel))
+      .split("{{eventCount}}").join(String(events.length))
+      .split("{{totalHours}}").join(String(totalHours))
+      .split("{{categoryCount}}").join(String(categoryCount))
+      .split("{{avgEvent}}").join(String(avgEvent))
+      .split("{{catSegments}}").join(catSegments)
+      .split("{{catLegend}}").join(catLegend)
+      .split("{{eventItems}}").join(eventItems);
+    html = html.replace(/\{\{#catBar\}\}/g, "").replace(/\{\{\/catBar\}\}/g, "");
+
+    return {
+      htmlContent: html,
+      htmlFile: this._writeTimelineHtml(dateLabel, html),
+      date: dateLabel,
+      stats: { eventCount: events.length, totalHours, categoryCount, avgEvent },
+    };
+  }
+
+  _writeTimelineHtml(dateLabel, html) {
+    const homeDir = process.env.CYBERBOSS_HOME || path.join(__dirname, "..", "..");
+    const tmpDir = path.join(homeDir, "tmp");
+    ensureDir(tmpDir);
+    const f = path.join(tmpDir, `daily-timeline-${dateLabel}.html`);
+    fs.writeFileSync(f, html, "utf8");
+    return f;
+  }
 }
 
 // ---- Helpers ----
