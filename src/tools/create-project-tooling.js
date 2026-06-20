@@ -3,6 +3,7 @@ const { SessionStore } = require("../adapters/runtime/codex/session-store");
 const { createTimelineIntegration } = require("../integrations/timeline");
 const { ChannelFileService } = require("../services/channel-file-service");
 const { DiaryService } = require("../services/diary-service");
+const { FeedbackService } = require("../services/feedback-service");
 const { FlashMemoryService } = require("../services/flash-memory-service");
 const { IdeaRefinementService } = require("../services/idea-refinement-service");
 const { KnowledgeService } = require("../services/knowledge-service");
@@ -27,6 +28,7 @@ function createProjectTooling(config, options = {}) {
   const channelFile = new ChannelFileService({ config, channelAdapter, sessionStore });
   const services = {
     diary: new DiaryService({ config }),
+    feedback: new FeedbackService({ config }),
     flashMemory: new FlashMemoryService({ config }),
     ideaRefinement: new IdeaRefinementService({ config }),
     knowledge: new KnowledgeService({ config }),

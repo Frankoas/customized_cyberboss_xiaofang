@@ -64,11 +64,11 @@
   .hero-title { font-family: var(--font-serif); font-size: var(--text-xl); font-weight: 700; color: var(--ink); }
   .hero-sub { font-size: var(--text-sm); color: var(--ink-3); margin-top: 4px; }
 
-  /* Stat grid */
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-  .stat-card { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 10px; padding: 14px; text-align: center; }
-  .stat-num { font-family: var(--font-serif); font-size: 24px; font-weight: 700; color: var(--accent); }
-  .stat-label { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
+  /* Stat grid — 2 columns with overflow protection */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .stat-card { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 10px; padding: 10px 6px; text-align: center; min-width: 0; overflow: hidden; }
+  .stat-num { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--accent); word-break: break-all; }
+  .stat-label { font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; }
 
   /* Sections */
   .section { margin-bottom: 22px; }

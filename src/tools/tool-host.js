@@ -75,23 +75,56 @@ function listProjectToolNames() {
 const PROJECT_TOOLS = [
   {
     name: "cyberboss_diary_append",
-    description: "Append a diary entry into Cyberboss local diary storage.",
-    shortHint: "Append a diary entry with direct text content.",
+    description: "Append a diary entry or set the end-of-day mood snapshot. Input: { text: string, title?: string, date?: string, time?: string, mood?: string } — pass 'mood' to set the daily mood (开心/一般/低落/烦躁/疲惫/充实/焦虑/平静/兴奋), otherwise a diary entry is appended.",
+    shortHint: "Append a diary entry or set daily mood snapshot.",
     topics: ["diary"],
     inputSchema: {
       type: "object",
-      required: ["text"],
       properties: {
-        text: { type: "string", description: "Diary body to append." },
+        text: { type: "string", description: "Diary body to append (required for append)." },
         title: { type: "string", description: "Optional short entry title." },
         date: { type: "string", description: "Optional date in YYYY-MM-DD." },
         time: { type: "string", description: "Optional time in HH:mm." },
+        mood: { type: "string", description: "Set the end-of-day mood snapshot. Must be one of: 开心, 一般, 低落, 烦躁, 疲惫, 充实, 焦虑, 平静, 兴奋. When this is set, 'text' is optional and will be appended as a mood note." },
       },
       additionalProperties: false,
     },
     async handler({ services, args, context }) {
+      // set_mood path: write mood to diary frontmatter
+      if (args.mood) {
+        const result = await services.diary.setMood({
+          date: args.date,
+          mood: args.mood,
+        });
+        // If text is also provided, append it as a mood note
+        if (args.text) {
+          await services.diary.append({
+            text: args.text,
+            title: "情绪快照",
+            date: args.date,
+            time: args.time,
+          });
+        }
+        if (context.testMode) {
+          result.testCopy = writeTestModeCopy({
+            context,
+            sourcePath: result.filePath,
+            subDir: "日记",
+            dataType: "diary-mood",
+            summary: `Mood: ${result.mood}`,
+          });
+        }
+        return {
+          text: `Mood set: ${result.mood} (score: ${result.mood_score}) → ${result.filePath}`,
+          data: result,
+        };
+      }
+
+      // Default: append diary entry
+      if (!args.text) {
+        throw new Error("text is required when mood is not set.");
+      }
       const result = await services.diary.append(args);
-      // Test mode: also write to test vault
       if (context.testMode) {
         const testCopy = writeTestModeCopy({
           context,
@@ -104,6 +137,48 @@ const PROJECT_TOOLS = [
       }
       return {
         text: `Diary appended to ${result.filePath}`,
+        data: result,
+      };
+    },
+  },
+  {
+    name: "cyberboss_user_feedback",
+    description: "Capture user feedback (bug report, feature request, UX feedback) and save it to the Obsidian vault. Use this when the user reports a bug, suggests a feature, or gives feedback about Cyberboss behavior.",
+    shortHint: "Save user feedback to the Obsidian vault.",
+    topics: ["feedback"],
+    inputSchema: {
+      type: "object",
+      required: ["title", "content"],
+      properties: {
+        category: { type: "string", description: "Feedback category: bug, feature-request, ux, or other." },
+        title: { type: "string", description: "Brief title for the feedback entry." },
+        context: { type: "string", description: "What the user was doing when the feedback arose." },
+        content: { type: "string", description: "The feedback details or issue description." },
+        priority: { type: "string", description: "Priority: high, medium, or low." },
+        date: { type: "string", description: "Optional date in YYYY-MM-DD. Defaults to today." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args, context }) {
+      const result = services.feedback.capture(args);
+      try {
+        const { recordActivity } = require("../services/activity-context");
+        if (recordActivity) {
+          await recordActivity({
+            context,
+            sourcePath: result.filePath,
+            subDir: "用户反馈",
+            dataType: "feedback",
+            summary: `Feedback: ${result.title}`,
+          });
+        }
+      } catch (_) {
+        // activity recording is best-effort
+      }
+      return {
+        text: result.appended
+          ? `Feedback appended to ${result.filePath}`
+          : `Feedback saved to ${result.filePath}`,
         data: result,
       };
     },

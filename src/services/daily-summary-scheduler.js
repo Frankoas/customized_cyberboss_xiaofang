@@ -44,15 +44,6 @@ class DailySummaryScheduler {
       };
     }
 
-    // Draft already exists?
-    if (state.lastDraftDate === today) {
-      return {
-        shouldGenerate: false,
-        reason: `Draft already exists for today (created at ${state.lastDraftAt})`,
-        lastGeneratedAt: state.lastDraftAt,
-      };
-    }
-
     // Time window: 20:00 - 23:59 (auto window)
     if (hour >= 20 && hour < 24) {
       return {
@@ -117,18 +108,13 @@ class DailySummaryScheduler {
   /**
    * Record that a summary was generated.
    */
-  markGenerated({ draft = false } = {}) {
+  markGenerated() {
     const now = new Date().toISOString();
     const today = formatDate(new Date());
     const state = this._readState();
 
-    if (draft) {
-      state.lastDraftDate = today;
-      state.lastDraftAt = now;
-    } else {
-      state.lastGeneratedDate = today;
-      state.lastGeneratedAt = now;
-    }
+    state.lastGeneratedDate = today;
+    state.lastGeneratedAt = now;
 
     this._writeState(state);
     return { recorded: true, today, at: now };
@@ -144,7 +130,6 @@ class DailySummaryScheduler {
       ...state,
       today,
       generatedToday: state.lastGeneratedDate === today,
-      draftToday: state.lastDraftDate === today,
     };
   }
 
@@ -159,8 +144,6 @@ class DailySummaryScheduler {
     return {
       lastGeneratedDate: null,
       lastGeneratedAt: null,
-      lastDraftDate: null,
-      lastDraftAt: null,
     };
   }
 

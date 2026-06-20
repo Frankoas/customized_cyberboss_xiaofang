@@ -281,13 +281,32 @@ test("tool host exposes sticker tools with compact structured outputs", async ()
 test("tool host accepts structured timeline screenshot input", async () => {
   const host = createHost();
   const result = await host.invokeTool("cyberboss_timeline_screenshot", {
-    selector: "timeline",
     range: "day",
     date: "2026-04-21",
     width: 1440,
   }, {});
-  assert.equal(result.text, "Timeline screenshot sent: /tmp/shot.png");
-  assert.equal(result.data.delivery.filePath, "/tmp/shot.png");
+  assert.match(result.text, /Timeline screenshot saved:/);
+  assert.ok(result.data.outputFile, "outputFile should be present");
+  assert.ok(result.data.delivery, "delivery should be present");
+});
+
+test("tool host validates summary screenshot requires htmlFile", async () => {
+  const host = createHost();
+  await assert.rejects(async () => {
+    await host.invokeTool("cyberboss_summary_screenshot", {
+      summaryType: "daily",
+    }, {});
+  }, /htmlFile is required/);
+});
+
+test("tool host rejects unknown params on timeline screenshot (v0.3.0 split)", async () => {
+  const host = createHost();
+  await assert.rejects(async () => {
+    await host.invokeTool("cyberboss_timeline_screenshot", {
+      selector: "timeline",
+      htmlFile: "/path/to/summary.html",
+    }, {});
+  }, /(selector is not allowed|htmlFile is not allowed)/);
 });
 
 test("tool host descriptions include schema summary for models that only surface descriptions", () => {

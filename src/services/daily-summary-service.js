@@ -83,7 +83,7 @@ class DailySummaryService {
       stats: this._computeStats(sections),
     };
 
-    // Persist to Obsidian vault (if configured)
+    // Persist to Obsidian vault + state dir
     const mdContent = this._renderMarkdown(summaryData);
     const htmlContent = this.buildHtml(summaryData);
     const savedPaths = this._persistSummary(dateLabel, mdContent, summaryData);
@@ -103,8 +103,8 @@ class DailySummaryService {
   status({ date = "" } = {}) {
     const dateLabel = date || formatDate(new Date());
     const paths = this._summaryPaths(dateLabel);
-    const draftExists = fs.existsSync(paths.draftFile);
-    const finalExists = fs.existsSync(paths.finalFile);
+    const mdExists = fs.existsSync(paths.mdFile || "");
+    const dataExists = fs.existsSync(paths.dataFile || "");
     const sectionsAvailable = [];
 
     // Check which data sources have data for today
@@ -129,8 +129,8 @@ class DailySummaryService {
 
     return {
       date: dateLabel,
-      draftExists,
-      finalExists,
+      mdExists,
+      dataExists,
       sectionsAvailable,
       lastGenerated: this._readLastGenerated(dateLabel),
     };
@@ -147,29 +147,27 @@ class DailySummaryService {
     }
 
     const paths = this._summaryPaths(dateLabel);
-    // Write or append to the plan section
-    const existing = fs.existsSync(paths.finalFile)
-      ? fs.readFileSync(paths.finalFile, "utf8")
-      : fs.existsSync(paths.draftFile)
-        ? fs.readFileSync(paths.draftFile, "utf8")
-        : "";
+    const targetFile = paths.mdFile;
+    const existing = (targetFile && fs.existsSync(targetFile))
+      ? fs.readFileSync(targetFile, "utf8")
+      : "";
 
     const planSection = `\n## 🔮 明天计划\n\n${normalizedPlan}\n`;
-    const targetFile = fs.existsSync(paths.finalFile) ? paths.finalFile : paths.draftFile;
 
     if (!existing) {
       const emptySummary = `# 📋 日终总结 · ${dateLabel}\n\n${planSection}`;
-      const dir = path.dirname(targetFile);
-      ensureDir(dir);
-      fs.writeFileSync(targetFile, emptySummary, "utf8");
+      if (targetFile) {
+        ensureDir(path.dirname(targetFile));
+        fs.writeFileSync(targetFile, emptySummary, "utf8");
+      }
     } else if (existing.includes("## 🔮 明天计划")) {
       const updated = existing.replace(
         /## 🔮 明天计划\n\n[\s\S]*?(?=\n##|\n*$)/,
         `## 🔮 明天计划\n\n${normalizedPlan}\n`
       );
-      fs.writeFileSync(targetFile, updated, "utf8");
+      if (targetFile) fs.writeFileSync(targetFile, updated, "utf8");
     } else {
-      fs.appendFileSync(targetFile, planSection, "utf8");
+      if (targetFile) fs.appendFileSync(targetFile, planSection, "utf8");
     }
 
     return { ok: true, date: dateLabel, filePath: targetFile };
@@ -220,10 +218,28 @@ class DailySummaryService {
     try {
       const filePath = this._diaryFilePath(dateLabel);
       if (!fs.existsSync(filePath)) {
-        return { exists: false, entries: [], rawText: "" };
+        return { exists: false, entries: [], rawText: "", mood: null };
       }
 
       const raw = fs.readFileSync(filePath, "utf8");
+
+      // Parse mood from YAML frontmatter
+      let mood = null;
+      if (raw.startsWith("---")) {
+        const fmEnd = raw.indexOf("---", 3);
+        if (fmEnd !== -1) {
+          const fm = raw.slice(3, fmEnd);
+          const moodMatch = fm.match(/^mood:\s*(.+)$/m);
+          const scoreMatch = fm.match(/^mood_score:\s*(\d+)$/m);
+          if (moodMatch) {
+            mood = {
+              mood: moodMatch[1].trim(),
+              mood_score: scoreMatch ? parseInt(scoreMatch[1], 10) : null,
+            };
+          }
+        }
+      }
+
       const entries = [];
 
       // Parse diary entries (## HH:mm sections)
@@ -260,9 +276,10 @@ class DailySummaryService {
         entryCount: entries.length,
         entries,
         rawText: raw.slice(0, 5000), // Limit for prompt context
+        mood,
       };
     } catch {
-      return { exists: false, entries: [], rawText: "" };
+      return { exists: false, entries: [], rawText: "", mood: null };
     }
   }
 
@@ -809,7 +826,17 @@ class DailySummaryService {
     const flashItems = this._aggregatePeriodFlash(dailyData);
     const quizTopics = this._aggregatePeriodTopics(dailyData);
 
-    const summaryData = { weekLabel, dateRange, dailyCount: dailyData.length, ...stats, moodCounts, flashItems: flashItems.slice(0, 15), quizTopics, generatedAt: new Date().toISOString() };
+    // Wrap data to match template section names (weekly-summary.html)
+    const summaryData = {
+      weekLabel, dateRange, dailyCount: dailyData.length,
+      ...stats,
+      timelineSection: null,  // TODO: populate from daily event aggregation
+      moodSection: moodCounts.length > 0 ? { moods: moodCounts } : null,
+      flashSection: flashItems.length > 0 ? { items: flashItems.slice(0, 15) } : null,
+      quizSection: quizTopics.length > 0 ? { topics: quizTopics } : null,
+      tasksSection: null,  // TODO: populate from daily task aggregation
+      generatedAt: new Date().toISOString()
+    };
     const htmlContent = this._renderSimpleTemplate("weekly-summary.html", summaryData);
     const savedPaths = this._persistSummaryHtml("周总结", weekLabel, "周总结", htmlContent, summaryData);
 
@@ -838,9 +865,20 @@ class DailySummaryService {
     const ideaStats = this._aggregatePeriodIdeas(dailyData);
     const heatmap = buildHeatmap(dailyData, monthStart, monthEnd);
 
-    const summaryData = { monthLabel, dailyCount: dailyData.length, ...stats, moodCounts, flashItems: flashItems.slice(0, 20), quizTopics, ideaStats, heatmap, generatedAt: new Date().toISOString() };
+    // Wrap data to match template section names (monthly-summary.html)
+    const summaryData = {
+      monthLabel, dailyCount: dailyData.length,
+      ...stats,
+      heatmapSection: heatmap.length > 0 ? { days: heatmap } : null,
+      moodSection: moodCounts.length > 0 ? { moods: moodCounts } : null,
+      quizSection: quizTopics.length > 0 ? { topics: quizTopics } : null,
+      ideaSection: ideaStats.draftCount > 0 ? ideaStats : null,
+      flashSection: flashItems.length > 0 ? { items: flashItems.slice(0, 20) } : null,
+      ideaCount: ideaStats.draftCount,
+      generatedAt: new Date().toISOString()
+    };
     const htmlContent = this._renderSimpleTemplate("monthly-summary.html", summaryData);
-    const savedPaths = this._persistSummaryHtml("月度总结", monthLabel, "月总结", htmlContent, summaryData);
+    const savedPaths = this._persistSummaryHtml("月总结", monthLabel, "月总结", htmlContent, summaryData);
 
     return { monthLabel, dailyCount: dailyData.length, stats, htmlContent, savedPaths };
   }
@@ -848,9 +886,13 @@ class DailySummaryService {
   // ---- Period helpers ----
 
   _readDailySummaryData(dateLabel) {
-    const paths = this._summaryPaths(dateLabel);
-    if (!fs.existsSync(paths.dataFile)) return null;
-    try { return JSON.parse(fs.readFileSync(paths.dataFile, "utf8")); } catch { return null; }
+    // Read from state dir (not vault)
+    const stateDir = this.config?.stateDir || path.join(os.homedir(), ".cyberboss");
+    const weekday = getDayOfWeekChinese(dateLabel);
+    const readableName = `${dateLabel}-${weekday}-日终总结`;
+    const dataFile = path.join(stateDir, "daily-summaries", dateLabel, `${readableName}_data.json`);
+    if (!fs.existsSync(dataFile)) return null;
+    try { return JSON.parse(fs.readFileSync(dataFile, "utf8")); } catch { return null; }
   }
 
   _aggregatePeriodStats(dailyData) {
@@ -876,9 +918,15 @@ class DailySummaryService {
   _aggregatePeriodMoods(dailyData) {
     const counts = {};
     for (const { data } of dailyData) {
+      // Flash mood tags
       const byMood = data.sections?.flash?.byMood || {};
       for (const [mood, count] of Object.entries(byMood)) {
         counts[mood] = (counts[mood] || 0) + count;
+      }
+      // Diary end-of-day mood snapshot (weighted x3 — one daily snapshot is more significant)
+      const diaryMood = data.sections?.diary?.mood;
+      if (diaryMood && diaryMood.mood) {
+        counts[diaryMood.mood] = (counts[diaryMood.mood] || 0) + 3;
       }
     }
     const total = Object.values(counts).reduce((s, c) => s + c, 0) || 1;
@@ -940,16 +988,27 @@ class DailySummaryService {
 
   _persistSummaryHtml(subDir, label, suffix, htmlContent, summaryData) {
     const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
-    const baseDir = obsidianDir
-      ? path.join(obsidianDir, "每日总结", subDir)
-      : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), subDir.toLowerCase().replace(/[^\w]/g, "-"));
-    ensureDir(baseDir);
     const safeLabel = label.replace(/[/\\:*?"<>|]/g, "-");
-    const htmlFile = path.join(baseDir, `${safeLabel}-${suffix}.html`);
-    const dataFile = path.join(baseDir, `${safeLabel}-${suffix}_data.json`);
-    fs.writeFileSync(htmlFile, htmlContent, "utf8");
+    const vaultBaseDir = obsidianDir
+      ? path.join(obsidianDir, "每日总结", subDir, safeLabel)
+      : null;
+    const stateDir = this.config?.stateDir || path.join(os.homedir(), ".cyberboss");
+
+    // HTML → vault (or state dir as fallback)
+    const htmlFile = vaultBaseDir
+      ? path.join(vaultBaseDir, `${safeLabel}-${suffix}.html`)
+      : path.join(stateDir, subDir.toLowerCase().replace(/[^\w]/g, "-"), `${safeLabel}-${suffix}.html`);
+    if (htmlFile) {
+      ensureDir(path.dirname(htmlFile));
+      fs.writeFileSync(htmlFile, htmlContent, "utf8");
+    }
+
+    // Data JSON → state dir (not vault)
+    const dataFile = path.join(stateDir, "daily-summaries", subDir, safeLabel, `${safeLabel}-${suffix}_data.json`);
+    ensureDir(path.dirname(dataFile));
     fs.writeFileSync(dataFile, JSON.stringify(summaryData, null, 2), "utf8");
-    return { baseDir, htmlFile, dataFile };
+
+    return { htmlFile, dataFile };
   }
 
   _renderSimpleTemplate(templateName, data) {
@@ -970,57 +1029,65 @@ class DailySummaryService {
       }
     }
 
-    // Handle {{#section}}...{{/section}} with nested {{#items}}...{{/items}}
-    html = html.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, sectionName, inner) => {
-      const val = data[sectionName];
-      if (!val || (Array.isArray(val) && !val.length) || (typeof val === "object" && !Object.keys(val).length)) {
-        // Render {{^sectionName}} if present, else empty
-        const negMatch = match.match(/\{\{\^(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/);
-        if (negMatch) return negMatch[2].replace(/\{\{[#^/]\w+\}\}/g, "");
-        return "";
-      }
-      // Replace nested {{#items}} blocks
-      let result = inner;
-      if (Array.isArray(val)) {
-        const itemsMatch = result.match(/\{\{#items\}\}([\s\S]*?)\{\{\/items\}\}/);
-        if (itemsMatch) {
-          const itemTpl = itemsMatch[1];
-          const rendered = val.map((item) => {
-            let ri = itemTpl;
-            for (const [k, v] of Object.entries(item)) {
-              if (v !== null && v !== undefined && typeof v !== "object") {
-                ri = ri.split(`{{${k}}}`).join(String(v));
-              }
-            }
-            return ri.replace(/\{\{[#^/]\w+\}\}/g, "");
-          }).join("\n");
-          result = result.replace(/\{\{#items\}\}[\s\S]*?\{\{\/items\}\}/, rendered);
-        }
-      } else if (typeof val === "object") {
-        for (const [k, v] of Object.entries(val)) {
-          if (v !== null && v !== undefined && typeof v !== "object") {
-            result = result.split(`{{${k}}}`).join(String(v));
-          } else if (Array.isArray(v)) {
-            const subMatch = result.match(new RegExp(`\\{\\{#${k}\\}\\}([\\s\\S]*?)\\{\\{/${k}\\}\\}`));
-            if (subMatch) {
-              const rendered = v.map((item) => {
-                let ri = subMatch[1];
-                for (const [ik, iv] of Object.entries(item)) {
-                  if (iv !== null && iv !== undefined && typeof iv !== "object") {
-                    ri = ri.split(`{{${ik}}}`).join(String(iv));
+    // Handle {{#section}}...{{/section}} with optional {{^section}}...{{/section}} pair.
+    // Match both blocks together so we can swap between them.
+    html = html.replace(
+      /\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}(?:\s*\{\{\^\1\}\}([\s\S]*?)\{\{\/\1\}\})?/g,
+      (match, sectionName, positiveInner, negativeInner) => {
+        const val = data[sectionName];
+        const isFalsy = !val || (Array.isArray(val) && !val.length) || (typeof val === "object" && !Object.keys(val).length);
+
+        // Choose which inner content to use
+        let result;
+        if (isFalsy) {
+          result = negativeInner ? negativeInner.replace(/\{\{[#^/]\w+\}\}/g, "") : "";
+        } else {
+          result = positiveInner;
+          // Replace nested {{#items}} blocks
+          if (Array.isArray(val)) {
+            const itemsMatch = result.match(/\{\{#items\}\}([\s\S]*?)\{\{\/items\}\}/);
+            if (itemsMatch) {
+              const itemTpl = itemsMatch[1];
+              const rendered = val.map((item) => {
+                let ri = itemTpl;
+                for (const [k, v] of Object.entries(item)) {
+                  if (v !== null && v !== undefined && typeof v !== "object") {
+                    ri = ri.split(`{{${k}}}`).join(String(v));
                   }
                 }
                 return ri.replace(/\{\{[#^/]\w+\}\}/g, "");
               }).join("\n");
-              result = result.split(subMatch[0]).join(rendered);
+              result = result.replace(/\{\{#items\}\}[\s\S]*?\{\{\/items\}\}/, rendered);
+            }
+          } else if (typeof val === "object") {
+            for (const [k, v] of Object.entries(val)) {
+              if (v !== null && v !== undefined && typeof v !== "object") {
+                result = result.split(`{{${k}}}`).join(String(v));
+              } else if (Array.isArray(v)) {
+                const subMatch = result.match(new RegExp(`\\{\\{#${k}\\}\\}([\\s\\S]*?)\\{\\{/${k}\\}\\}`));
+                if (subMatch) {
+                  const rendered = v.map((item) => {
+                    let ri = subMatch[1];
+                    for (const [ik, iv] of Object.entries(item)) {
+                      if (iv !== null && iv !== undefined && typeof iv !== "object") {
+                        ri = ri.split(`{{${ik}}}`).join(String(iv));
+                      }
+                    }
+                    return ri.replace(/\{\{[#^/]\w+\}\}/g, "");
+                  }).join("\n");
+                  result = result.split(subMatch[0]).join(rendered);
+                }
+              }
             }
           }
+          // Remove any {{^sub}} blocks left inside the positive section
+          result = result.replace(/\{\{\^(\w+)\}\}[\s\S]*?\{\{\/\1\}\}/g, "");
         }
+        return result.replace(/\{\{[#^/]\w+\}\}/g, "");
       }
-      return result.replace(/\{\{[#^/]\w+\}\}/g, "");
-    });
+    );
 
-    // Remove remaining {{^section}} empty blocks
+    // Remove any orphan {{^section}} blocks (no matching {{#section}} found above)
     html = html.replace(/\{\{\^(\w+)\}\}[\s\S]*?\{\{\/\1\}\}/g, "");
     // Remove any remaining unresolved tags
     html = html.replace(/\{\{[#^/]\w+\}\}/g, "");
@@ -1030,6 +1097,7 @@ class DailySummaryService {
   }
 
   _computeStats(sections) {
+    const diaryMood = sections.diary?.mood;
     return {
       eventCount: sections.timeline?.eventCount || 0,
       totalTrackedMinutes: sections.timeline?.totalMinutes || 0,
@@ -1046,6 +1114,8 @@ class DailySummaryService {
       ideaActiveSessions: sections.ideas?.activeSessions || 0,
       ideaCompletedSessions: sections.ideas?.completedSessions || 0,
       ideaRefinedCount: sections.ideas?.refinedCount || 0,
+      dailyMood: diaryMood?.mood || null,
+      dailyMoodScore: diaryMood?.mood_score ?? null,
     };
   }
 
@@ -1070,16 +1140,15 @@ class DailySummaryService {
   }
 
   /**
-   * Persist the HTML summary alongside the Markdown version.
+   * Persist the HTML summary alongside the Markdown version in vault.
    */
   _persistHtml(dateLabel, htmlContent) {
     const paths = this._summaryPaths(dateLabel);
-    const weekday = getDayOfWeekChinese(dateLabel);
-    const readableName = `${dateLabel}-${weekday}-日终总结`;
-    const htmlFile = path.join(paths.baseDir, `${readableName}.html`);
-    ensureDir(paths.baseDir);
-    fs.writeFileSync(htmlFile, htmlContent, "utf8");
-    return htmlFile;
+    if (paths.htmlFile) {
+      ensureDir(path.dirname(paths.htmlFile));
+      fs.writeFileSync(paths.htmlFile, htmlContent, "utf8");
+    }
+    return paths.htmlFile;
   }
 
   // ---- HTML template rendering (mustache-style) ----
@@ -1481,17 +1550,30 @@ class DailySummaryService {
     const tasks = sections.tasks || {};
     const ideas = sections.ideas || {};
 
+    // Mood snapshot
+    const diaryMood = d.mood;
+    const moodEmojiMap = { "开心": "😊", "兴奋": "🔥", "充实": "💪", "平静": "😌", "一般": "😐", "焦虑": "😰", "疲惫": "🔋", "烦躁": "😤", "低落": "😞" };
+    const moodFrontmatter = diaryMood && diaryMood.mood
+      ? [`mood: ${diaryMood.mood}`, `mood_score: ${diaryMood.mood_score ?? ""}`]
+      : [];
+
     const lines = [
       "---",
       `type: daily-summary`,
       `date: ${date}`,
       `generated: ${data.generatedAt}`,
+      ...moodFrontmatter,
       `screenshot: ${data._screenshotPath || ""}`,
       "---",
       "",
       `# 📋 日终总结 · ${date}`,
-      "",
     ];
+
+    if (diaryMood && diaryMood.mood) {
+      const emoji = moodEmojiMap[diaryMood.mood] || "";
+      lines.push(`> 今日情绪：${emoji} **${diaryMood.mood}**${diaryMood.mood_score ? ` (${diaryMood.mood_score}/5)` : ""}`);
+    }
+    lines.push("");
 
     // Screenshot embed (if attached later)
     if (data._screenshotPath) {
@@ -1644,20 +1726,26 @@ class DailySummaryService {
   // ---- Persistence ----
 
   _summaryPaths(dateLabel) {
-    // Primary: Obsidian vault (if configured)
+    // Obsidian vault: 每日总结/日总结/YYYY-MM-DD/
     const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
     const weekday = getDayOfWeekChinese(dateLabel);
     const readableName = `${dateLabel}-${weekday}-日终总结`;
 
-    const baseDir = obsidianDir
-      ? path.join(obsidianDir, "每日总结", dateLabel.slice(0, 4), dateLabel.slice(5, 7))
-      : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), "daily-summaries", dateLabel.slice(0, 4), dateLabel.slice(5, 7));
+    const vaultBaseDir = obsidianDir
+      ? path.join(obsidianDir, "每日总结", "日总结", dateLabel)
+      : null;
+
+    // State dir for internal data (not vault-visible)
+    const stateDir = this.config?.stateDir || path.join(os.homedir(), ".cyberboss");
 
     return {
-      baseDir,
-      draftFile: path.join(baseDir, `${readableName}_草稿.md`),
-      finalFile: path.join(baseDir, `${readableName}.md`),
-      dataFile: path.join(baseDir, `${readableName}_data.json`),
+      vaultBaseDir,
+      // Single md file — overwrite on re-generate (no draft/final distinction)
+      mdFile: vaultBaseDir ? path.join(vaultBaseDir, `${readableName}.md`) : path.join(stateDir, "daily-summaries", dateLabel, `${readableName}.md`),
+      // HTML file alongside md in vault
+      htmlFile: vaultBaseDir ? path.join(vaultBaseDir, `${readableName}.html`) : path.join(stateDir, "daily-summaries", dateLabel, `${readableName}.html`),
+      // Data JSON moved to state dir (not vault) — used by weekly/monthly aggregation
+      dataFile: path.join(stateDir, "daily-summaries", dateLabel, `${readableName}_data.json`),
     };
   }
 
@@ -1666,13 +1754,15 @@ class DailySummaryService {
     const savedPaths = {};
 
     try {
-      ensureDir(paths.baseDir);
+      // Write MD to vault (single file, overwrite on re-generate)
+      if (paths.mdFile) {
+        ensureDir(path.dirname(paths.mdFile));
+        fs.writeFileSync(paths.mdFile, mdContent, "utf8");
+        savedPaths.md = paths.mdFile;
+      }
 
-      // Always write draft first
-      fs.writeFileSync(paths.draftFile, mdContent, "utf8");
-      savedPaths.draft = paths.draftFile;
-
-      // Write structured data for HTML rendering
+      // Write data JSON to state dir (not vault-visible, used by weekly/monthly aggregation)
+      ensureDir(path.dirname(paths.dataFile));
       fs.writeFileSync(paths.dataFile, JSON.stringify(summaryData, null, 2), "utf8");
       savedPaths.data = paths.dataFile;
     } catch (err) {
@@ -1694,9 +1784,9 @@ class DailySummaryService {
     }
 
     const paths = this._summaryPaths(dateLabel);
-    const targetFile = fs.existsSync(paths.finalFile) ? paths.finalFile : paths.draftFile;
+    const targetFile = paths.mdFile;
 
-    if (!fs.existsSync(targetFile)) {
+    if (!targetFile || !fs.existsSync(targetFile)) {
       throw new Error(`No summary found for ${dateLabel}. Generate it first.`);
     }
 
@@ -1743,20 +1833,19 @@ class DailySummaryService {
   }
 
   /**
-   * Finalize a draft — move to final file.
+   * Finalize — confirm the summary is locked (no-op in single-file model).
    */
   finalize({ date = "" } = {}) {
     const dateLabel = date || formatDate(new Date());
     const paths = this._summaryPaths(dateLabel);
 
-    if (!fs.existsSync(paths.draftFile)) {
-      throw new Error(`No draft summary found for ${dateLabel}`);
+    if (!paths.mdFile || !fs.existsSync(paths.mdFile)) {
+      throw new Error(`No summary found for ${dateLabel}. Generate it first.`);
     }
 
-    const content = fs.readFileSync(paths.draftFile, "utf8");
-    fs.writeFileSync(paths.finalFile, content, "utf8");
-
-    return { ok: true, date: dateLabel, filePath: paths.finalFile };
+    // In the new single-file model, there's no draft→final copy.
+    // finalize() is kept for API compatibility — the file is already final.
+    return { ok: true, date: dateLabel, filePath: paths.mdFile };
   }
 
   _diaryFilePath(dateLabel) {
@@ -1780,15 +1869,9 @@ class DailySummaryService {
 
   _readLastGenerated(dateLabel) {
     const paths = this._summaryPaths(dateLabel);
-    if (fs.existsSync(paths.finalFile)) {
+    if (paths.mdFile && fs.existsSync(paths.mdFile)) {
       try {
-        const stat = fs.statSync(paths.finalFile);
-        return stat.mtime.toISOString();
-      } catch { /* ignore */ }
-    }
-    if (fs.existsSync(paths.draftFile)) {
-      try {
-        const stat = fs.statSync(paths.draftFile);
+        const stat = fs.statSync(paths.mdFile);
         return stat.mtime.toISOString();
       } catch { /* ignore */ }
     }
