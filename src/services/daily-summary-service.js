@@ -2,6 +2,17 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
+// Category→hub wikilink map for auto-linking (shared across render + vault link)
+const CAT_HUB = {
+  "半导体物理": "[[半导体物理|半导体物理]]",
+  "单片机原理与应用": "[[单片机原理与应用|单片机原理]]",
+};
+// Reverse map: hub display name → canonical vault filename
+const CAT_TO_HUB_FILE = {
+  "半导体物理": "半导体物理",
+  "单片机原理与应用": "单片机原理与应用",
+};
+
 class DailySummaryService {
   constructor({ config, services }) {
     this.config = config;
@@ -59,6 +70,9 @@ class DailySummaryService {
     if (includeSections.includes("ideas")) {
       sections.ideas = this._aggregateIdeas(dateLabel);
     }
+
+    // Auto-link vault files touched today (quiz, flash, drafts)
+    await this._linkVaultFiles(dateLabel, sections);
 
     // Build the full summary data
     const summaryData = {
@@ -314,6 +328,24 @@ class DailySummaryService {
         }
       }
 
+      // Enrich with category & title from knowledge index for auto-linking
+      try {
+        const index = this.services.knowledge?.getIndex();
+        if (index) {
+          const itemMap = {};
+          for (const item of index.items) {
+            itemMap[item.id] = item;
+          }
+          for (const record of todayRecords) {
+            const item = itemMap[record.itemId];
+            if (item) {
+              record.category = item.category;
+              record.title = item.tags?.[0] || item.id;
+            }
+          }
+        }
+      } catch { /* enrichment is best-effort */ }
+
       return {
         exists: true,
         overallTotalAnswers: stats?.totalAnswers || 0,
@@ -561,6 +593,7 @@ class DailySummaryService {
           const stat = fs.statSync(filePath);
           let title = file.name.replace(/\.md$/, "");
           let status = "pending";
+          let refinedLink = null;
 
           try {
             const raw = fs.readFileSync(filePath, "utf8");
@@ -568,6 +601,12 @@ class DailySummaryService {
             if (h1Match) title = h1Match[1];
             const statusMatch = raw.match(/^status:\s*(.+)$/m);
             if (statusMatch) status = statusMatch[1].trim();
+            // Parse refined link from YAML frontmatter
+            const refinedMatch = raw.match(/^refined:\s*"?(.+?)"?\s*$/m);
+            if (refinedMatch) {
+              refinedLink = refinedMatch[1].trim();
+              if (refinedLink.endsWith('"')) refinedLink = refinedLink.slice(0, -1);
+            }
           } catch { /* ignore */ }
 
           drafts.push({
@@ -575,6 +614,7 @@ class DailySummaryService {
             filePath,
             status,
             lastModified: formatDate(stat.mtime),
+            refinedLink,
           });
         }
       }
@@ -628,6 +668,365 @@ class DailySummaryService {
     } catch {
       return Infinity;
     }
+  }
+
+  /**
+   * Auto-link vault files touched today: add missing wikilinks to quiz files,
+   * flash items, and idea drafts so the Obsidian graph stays connected.
+   */
+  async _linkVaultFiles(dateLabel, sections) {
+    const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    if (!obsidianDir || !fs.existsSync(obsidianDir)) return;
+
+    // 1. Build title→filePath map by scanning knowledge base directories
+    const kbDir = path.join(obsidianDir, "知识库");
+    const titleToPath = {};
+    if (fs.existsSync(kbDir)) {
+      try {
+        for (const catEntry of fs.readdirSync(kbDir, { withFileTypes: true })) {
+          if (!catEntry.isDirectory() || catEntry.name.startsWith("_")) continue;
+          const fullCatDir = path.join(kbDir, catEntry.name);
+          for (const file of fs.readdirSync(fullCatDir, { withFileTypes: true })) {
+            if (!file.isFile() || !file.name.endsWith(".md") || file.name.startsWith("_")) continue;
+            titleToPath[file.name.replace(/\.md$/, "")] = path.join(fullCatDir, file.name);
+          }
+        }
+      } catch { /* kb dir scan is best-effort */ }
+    }
+
+    // 2. Quiz files: add ## 🔗 相关笔记 if missing
+    const quizRecords = sections.quiz?.todayRecords || [];
+    const linkedTitles = new Set();
+    for (const rec of quizRecords) {
+      const title = rec.title;
+      if (!title || linkedTitles.has(title)) continue;
+      const filePath = titleToPath[title];
+      if (!filePath || !fs.existsSync(filePath)) continue;
+
+      let content;
+      try { content = fs.readFileSync(filePath, "utf8"); } catch { continue; }
+      if (content.includes("## 🔗 相关笔记")) { linkedTitles.add(title); continue; }
+
+      const cat = rec.category || "";
+      const hubFile = CAT_TO_HUB_FILE[cat];
+      const parts = [];
+      if (hubFile) parts.push(`[[${hubFile}|← ${hubFile}索引]]`);
+
+      // Add links to other quiz files in same category answered today
+      const sameCat = quizRecords
+        .filter(r => r.category === cat && r.title !== title && r.title)
+        .map(r => r.title);
+      for (const t of sameCat.slice(0, 4)) parts.push(`[[${t}]]`);
+
+      if (parts.length > 0) {
+        try {
+          fs.writeFileSync(filePath, content.trimEnd() + `\n\n## 🔗 相关笔记\n- ${parts.join(" · ")}`);
+        } catch { /* write is best-effort */ }
+      }
+      linkedTitles.add(title);
+    }
+
+    // 3. Flash inbox items: add hub links based on tag matching
+    const flashItems = sections.flash?.todayItems || [];
+    const inboxDir = path.join(obsidianDir, "闪存记忆", "inbox");
+    if (flashItems.length > 0 && fs.existsSync(inboxDir)) {
+      const weekday = getDayOfWeekChinese(dateLabel);
+      const summaryNote = `${dateLabel}-${weekday}-日终总结`;
+      for (const item of flashItems) {
+        const tags = item.tags || [];
+        const matching = tags.filter(t => CAT_HUB[t]);
+        if (!matching.length) continue;
+
+        const flashFile = path.join(inboxDir, `${item.id}.md`);
+        if (!fs.existsSync(flashFile)) continue;
+
+        let content;
+        try { content = fs.readFileSync(flashFile, "utf8"); } catch { continue; }
+        if (content.includes("## 🔗 相关")) continue;
+
+        const hubLinks = matching.map(c => CAT_HUB[c]);
+        try {
+          fs.writeFileSync(
+            flashFile,
+            content.trimEnd() + `\n\n## 🔗 相关\n- ${hubLinks.join(" · ")} · [[${summaryNote}|当日总结]]`
+          );
+        } catch { /* write is best-effort */ }
+      }
+    }
+
+    // 4. Idea drafts: ensure refined YAML field + body wikilink
+    const drafts = sections.ideas?.drafts || [];
+    if (drafts.length > 0) {
+      const ideasDir = path.join(obsidianDir, "大构思");
+      const HUB_LINE = "> 📋 已完善：";
+      for (const idea of drafts) {
+        if (idea.status !== "completed" || !idea.refinedLink) continue;
+        const draftPath = idea.filePath || path.join(ideasDir, "drafts", `${idea.title}.md`);
+        if (!fs.existsSync(draftPath)) continue;
+
+        let content;
+        try { content = fs.readFileSync(draftPath, "utf8"); } catch { continue; }
+
+        // Add refined field to YAML frontmatter if missing
+        if (!/^refined:\s/m.test(content)) {
+          content = content.replace(
+            /(^status:\s*.+)$/m,
+            `$1\nrefined: "${idea.refinedLink}"`
+          );
+        }
+
+        // Add body wikilink after frontmatter if missing
+        const refinedName = idea.refinedLink.replace(/\[\[|\]\]/g, "");
+        if (!content.includes(refinedName) && !content.includes(HUB_LINE)) {
+          const fmEnd = content.indexOf("---", content.indexOf("---") + 3);
+          if (fmEnd !== -1) {
+            const hubLink = `\n\n> 📋 已完善：${idea.refinedLink} | [[大构思|← 大构思中心]]\n`;
+            content = content.slice(0, fmEnd + 3) + hubLink + content.slice(fmEnd + 3);
+          }
+        }
+
+        try { fs.writeFileSync(draftPath, content, "utf8"); } catch { /* best-effort */ }
+      }
+    }
+  }
+
+  // ---- Weekly / Monthly summaries ----
+
+  async generateWeeklySummary({ date = "" } = {}) {
+    const { monday, sunday } = resolveWeekRange(date);
+    const weekLabel = formatWeekLabel(monday);
+    const dateRange = `${monday.getMonth() + 1}月${monday.getDate()}日 - ${sunday.getMonth() + 1}月${sunday.getDate()}日`;
+
+    const dailyData = [];
+    for (let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)) {
+      const ds = formatDate(d);
+      const data = this._readDailySummaryData(ds);
+      if (data) dailyData.push({ date: ds, data });
+    }
+
+    const stats = this._aggregatePeriodStats(dailyData);
+    const moodCounts = this._aggregatePeriodMoods(dailyData);
+    const flashItems = this._aggregatePeriodFlash(dailyData);
+    const quizTopics = this._aggregatePeriodTopics(dailyData);
+
+    const summaryData = { weekLabel, dateRange, dailyCount: dailyData.length, ...stats, moodCounts, flashItems: flashItems.slice(0, 15), quizTopics, generatedAt: new Date().toISOString() };
+    const htmlContent = this._renderSimpleTemplate("weekly-summary.html", summaryData);
+    const savedPaths = this._persistSummaryHtml("周总结", weekLabel, "周总结", htmlContent, summaryData);
+
+    return { weekLabel, dateRange, dailyCount: dailyData.length, stats, htmlContent, savedPaths };
+  }
+
+  async generateMonthlySummary({ date = "" } = {}) {
+    const targetDate = date ? new Date(date + "T12:00:00+08:00") : new Date();
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const monthLabel = `${year}年${month + 1}月`;
+
+    const dailyData = [];
+    for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+      const ds = formatDate(d);
+      const data = this._readDailySummaryData(ds);
+      if (data) dailyData.push({ date: ds, data });
+    }
+
+    const stats = this._aggregatePeriodStats(dailyData);
+    const moodCounts = this._aggregatePeriodMoods(dailyData);
+    const flashItems = this._aggregatePeriodFlash(dailyData);
+    const quizTopics = this._aggregatePeriodTopics(dailyData);
+    const ideaStats = this._aggregatePeriodIdeas(dailyData);
+    const heatmap = buildHeatmap(dailyData, monthStart, monthEnd);
+
+    const summaryData = { monthLabel, dailyCount: dailyData.length, ...stats, moodCounts, flashItems: flashItems.slice(0, 20), quizTopics, ideaStats, heatmap, generatedAt: new Date().toISOString() };
+    const htmlContent = this._renderSimpleTemplate("monthly-summary.html", summaryData);
+    const savedPaths = this._persistSummaryHtml("月度总结", monthLabel, "月总结", htmlContent, summaryData);
+
+    return { monthLabel, dailyCount: dailyData.length, stats, htmlContent, savedPaths };
+  }
+
+  // ---- Period helpers ----
+
+  _readDailySummaryData(dateLabel) {
+    const paths = this._summaryPaths(dateLabel);
+    if (!fs.existsSync(paths.dataFile)) return null;
+    try { return JSON.parse(fs.readFileSync(paths.dataFile, "utf8")); } catch { return null; }
+  }
+
+  _aggregatePeriodStats(dailyData) {
+    let eventCount = 0, totalMinutes = 0, flashCount = 0, quizCount = 0, quizCorrect = 0, diaryCount = 0, taskCompleted = 0;
+    for (const { data } of dailyData) {
+      const s = data.stats || {};
+      eventCount += s.eventCount || 0;
+      totalMinutes += s.totalTrackedMinutes || 0;
+      flashCount += s.flashTodayCount || 0;
+      quizCount += s.quizTodayCount || 0;
+      const rate = s.quizCorrectRate || 0;
+      quizCorrect += Math.round((s.quizTodayCount || 0) * rate / 100);
+      diaryCount += s.diaryEntryCount || 0;
+      taskCompleted += s.taskCompletedCount || 0;
+    }
+    return {
+      eventCount, totalMinutes, trackedHours: Math.round(totalMinutes / 60),
+      flashCount, quizCount, diaryCount, taskCompleted,
+      quizRate: quizCount > 0 ? Math.round((quizCorrect / quizCount) * 100) : 0,
+    };
+  }
+
+  _aggregatePeriodMoods(dailyData) {
+    const counts = {};
+    for (const { data } of dailyData) {
+      const byMood = data.sections?.flash?.byMood || {};
+      for (const [mood, count] of Object.entries(byMood)) {
+        counts[mood] = (counts[mood] || 0) + count;
+      }
+    }
+    const total = Object.values(counts).reduce((s, c) => s + c, 0) || 1;
+    return Object.entries(counts).map(([label, count]) => ({
+      label, count, pct: Math.round((count / total) * 100),
+    })).sort((a, b) => b.count - a.count);
+  }
+
+  _aggregatePeriodFlash(dailyData) {
+    const items = [];
+    for (const { data } of dailyData) {
+      const todayItems = data.sections?.flash?.todayItems || [];
+      for (const item of todayItems) {
+        items.push({
+          text: (item.rawText || item.cleanedText || "").slice(0, 80),
+          category: item.category || "",
+          mood: item.mood || "",
+        });
+      }
+    }
+    return items;
+  }
+
+  _aggregatePeriodTopics(dailyData) {
+    const topicMap = {};
+    for (const { data } of dailyData) {
+      const records = data.sections?.quiz?.todayRecords || [];
+      for (const rec of records) {
+        if (rec.title) {
+          topicMap[rec.title] = (topicMap[rec.title] || 0) + 1;
+        }
+      }
+    }
+    return Object.entries(topicMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }
+
+  _aggregatePeriodIdeas(dailyData) {
+    let draftCount = 0, activeSessions = 0, completedSessions = 0, refinedCount = 0;
+    const drafts = [];
+    const seen = new Set();
+    for (const { data } of dailyData) {
+      const ideas = data.sections?.ideas || {};
+      activeSessions = Math.max(activeSessions, ideas.activeSessions || 0);
+      completedSessions = Math.max(completedSessions, ideas.completedSessions || 0);
+      refinedCount = Math.max(refinedCount, ideas.refinedCount || 0);
+      for (const d of (ideas.drafts || [])) {
+        if (!seen.has(d.title)) {
+          seen.add(d.title);
+          draftCount++;
+          drafts.push({ title: d.title, status: d.status || "pending", statusIcon: d.status === "completed" ? "✅" : d.status === "in_progress" ? "🔄" : "📝" });
+        }
+      }
+    }
+    return { draftCount, activeSessions, completedSessions, refinedCount, drafts };
+  }
+
+  _persistSummaryHtml(subDir, label, suffix, htmlContent, summaryData) {
+    const obsidianDir = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    const baseDir = obsidianDir
+      ? path.join(obsidianDir, "每日总结", subDir)
+      : path.join(this.config?.stateDir || path.join(os.homedir(), ".cyberboss"), subDir.toLowerCase().replace(/[^\w]/g, "-"));
+    ensureDir(baseDir);
+    const safeLabel = label.replace(/[/\\:*?"<>|]/g, "-");
+    const htmlFile = path.join(baseDir, `${safeLabel}-${suffix}.html`);
+    const dataFile = path.join(baseDir, `${safeLabel}-${suffix}_data.json`);
+    fs.writeFileSync(htmlFile, htmlContent, "utf8");
+    fs.writeFileSync(dataFile, JSON.stringify(summaryData, null, 2), "utf8");
+    return { baseDir, htmlFile, dataFile };
+  }
+
+  _renderSimpleTemplate(templateName, data) {
+    const homeDir = process.env.CYBERBOSS_HOME || path.join(__dirname, "..", "..");
+    const templatePath = path.join(homeDir, "templates", templateName);
+    let template;
+    if (fs.existsSync(templatePath)) {
+      template = fs.readFileSync(templatePath, "utf8");
+    } else {
+      template = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Summary</title></head><body><h1>{{weekLabel}}{{monthLabel}}</h1><p>No template found.</p></body></html>`;
+    }
+
+    // Simple {{key}} replacement + {{#section}}...{{/section}} support
+    let html = template;
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== null && value !== undefined && typeof value !== "object") {
+        html = html.split(`{{${key}}}`).join(String(value));
+      }
+    }
+
+    // Handle {{#section}}...{{/section}} with nested {{#items}}...{{/items}}
+    html = html.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, sectionName, inner) => {
+      const val = data[sectionName];
+      if (!val || (Array.isArray(val) && !val.length) || (typeof val === "object" && !Object.keys(val).length)) {
+        // Render {{^sectionName}} if present, else empty
+        const negMatch = match.match(/\{\{\^(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/);
+        if (negMatch) return negMatch[2].replace(/\{\{[#^/]\w+\}\}/g, "");
+        return "";
+      }
+      // Replace nested {{#items}} blocks
+      let result = inner;
+      if (Array.isArray(val)) {
+        const itemsMatch = result.match(/\{\{#items\}\}([\s\S]*?)\{\{\/items\}\}/);
+        if (itemsMatch) {
+          const itemTpl = itemsMatch[1];
+          const rendered = val.map((item) => {
+            let ri = itemTpl;
+            for (const [k, v] of Object.entries(item)) {
+              if (v !== null && v !== undefined && typeof v !== "object") {
+                ri = ri.split(`{{${k}}}`).join(String(v));
+              }
+            }
+            return ri.replace(/\{\{[#^/]\w+\}\}/g, "");
+          }).join("\n");
+          result = result.replace(/\{\{#items\}\}[\s\S]*?\{\{\/items\}\}/, rendered);
+        }
+      } else if (typeof val === "object") {
+        for (const [k, v] of Object.entries(val)) {
+          if (v !== null && v !== undefined && typeof v !== "object") {
+            result = result.split(`{{${k}}}`).join(String(v));
+          } else if (Array.isArray(v)) {
+            const subMatch = result.match(new RegExp(`\\{\\{#${k}\\}\\}([\\s\\S]*?)\\{\\{/${k}\\}\\}`));
+            if (subMatch) {
+              const rendered = v.map((item) => {
+                let ri = subMatch[1];
+                for (const [ik, iv] of Object.entries(item)) {
+                  if (iv !== null && iv !== undefined && typeof iv !== "object") {
+                    ri = ri.split(`{{${ik}}}`).join(String(iv));
+                  }
+                }
+                return ri.replace(/\{\{[#^/]\w+\}\}/g, "");
+              }).join("\n");
+              result = result.split(subMatch[0]).join(rendered);
+            }
+          }
+        }
+      }
+      return result.replace(/\{\{[#^/]\w+\}\}/g, "");
+    });
+
+    // Remove remaining {{^section}} empty blocks
+    html = html.replace(/\{\{\^(\w+)\}\}[\s\S]*?\{\{\/\1\}\}/g, "");
+    // Remove any remaining unresolved tags
+    html = html.replace(/\{\{[#^/]\w+\}\}/g, "");
+    html = html.replace(/\{\{\w+\}\}/g, "");
+
+    return html;
   }
 
   _computeStats(sections) {
@@ -1142,7 +1541,13 @@ class DailySummaryService {
       for (const item of f.todayItems.slice(0, 30)) {
         const moodTag = item.mood ? ` \`${item.mood}\`` : "";
         const catTag = item.category ? ` [${item.category}]` : "";
-        lines.push(`- ${item.rawText || item.cleanedText}${catTag}${moodTag}`);
+        // Auto-link flash tags to matching knowledge hubs
+        const linkSuffixes = [];
+        for (const tag of (item.tags || [])) {
+          if (CAT_HUB[tag]) linkSuffixes.push(CAT_HUB[tag]);
+        }
+        const linkStr = linkSuffixes.length > 0 ? " → " + linkSuffixes.join(" · ") : "";
+        lines.push(`- ${item.rawText || item.cleanedText}${catTag}${moodTag}${linkStr}`);
       }
     } else {
       lines.push("（今日无闪存灵感）");
@@ -1177,8 +1582,24 @@ class DailySummaryService {
 
     lines.push("", "## 🧠 学习记录", "");
     if (q.todayCount > 0) {
-      lines.push(`- 今日答题 ${q.todayTotal || q.todayCount} 题，正确 ${q.todayCorrect || 0} 题`);
-      lines.push(`- 正确率：${q.todayCorrectRate || 0}%`);
+      // Group today's quiz records by category for auto-linking
+      const quizByCat = {};
+      const allTitles = new Set();
+      for (const rec of (q.todayRecords || [])) {
+        const cat = rec.category || "其他";
+        if (!quizByCat[cat]) quizByCat[cat] = new Set();
+        if (rec.title) { quizByCat[cat].add(rec.title); allTitles.add(rec.title); }
+      }
+      // Category hub links
+      const catLinks = Object.keys(quizByCat).map(c => CAT_HUB[c] || `[[${c}]]`);
+      if (catLinks.length > 0) {
+        lines.push(`- 📖 ${catLinks.join(" · ")} — 通勤刷题`);
+      }
+      // Individual topic links (up to 10)
+      if (allTitles.size > 0) {
+        lines.push(`- 🏷️ ${[...allTitles].slice(0, 10).map(t => `[[${t}]]`).join(" · ")}`);
+      }
+      lines.push(`- 今日答题 ${q.todayTotal || q.todayCount} 题，正确 ${q.todayCorrect || 0} 题，正确率 ${q.todayCorrectRate || 0}%`);
       lines.push(`- 知识库总答题：${q.overallTotalAnswers || 0} 题，总体正确率 ${Math.round((q.overallCorrectRate || 0) * 100)}%`);
     } else {
       lines.push("（今日无学习记录）");
@@ -1192,7 +1613,9 @@ class DailySummaryService {
         for (const idea of (ideas.drafts || []).slice(0, 20)) {
           const statusLabel = idea.status === "completed" ? "✅" : idea.status === "in_progress" ? "🔄" : "📝";
           const statusInfo = idea.lastModified ? `（${idea.lastModified}）` : "";
-          lines.push(`  ${statusLabel} [[${idea.title}]] ${statusInfo}`);
+          // Show draft→refined link if exists
+          const refinedPart = idea.refinedLink ? ` → ${idea.refinedLink}` : "";
+          lines.push(`  ${statusLabel} [[${idea.title}]]${refinedPart} ${statusInfo}`);
         }
       }
       if (ideas.activeSessions > 0) {
@@ -1204,6 +1627,8 @@ class DailySummaryService {
       if (ideas.refinedCount > 0) {
         lines.push(`📋 **完善稿**：${ideas.refinedCount} 篇`);
       }
+      // Hub link
+      lines.push(`📂 [[大构思|→ 大构思中心]]`);
     } else {
       lines.push("", "## 🏗️ 大构思完善", "");
       lines.push("（暂无构思草稿 · 将你的构思放入 `大构思/drafts/` 目录即可开始）");
@@ -1409,6 +1834,58 @@ function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+}
+
+// ---- Weekly / Monthly helpers ----
+
+function resolveWeekRange(dateStr) {
+  const d = dateStr ? new Date(dateStr + "T12:00:00+08:00") : new Date();
+  const dayOfWeek = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
+}
+
+function formatWeekLabel(monday) {
+  const year = monday.getFullYear();
+  const weekNum = getWeekNumber(monday);
+  return `${year}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+function getWeekNumber(d) {
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil(((target - yearStart) / 86400000 + 1) / 7);
+}
+
+function buildHeatmap(dailyData, monthStart, monthEnd) {
+  const dayMap = {};
+  for (const { date, data } of dailyData) {
+    const minutes = data.stats?.totalTrackedMinutes || 0;
+    dayMap[date] = Math.round(minutes / 60);
+  }
+  const maxHours = Math.max(1, ...Object.values(dayMap));
+  const days = [];
+  const d = new Date(monthStart);
+  while (d <= monthEnd) {
+    const ds = formatDate(d);
+    const hours = dayMap[ds] || 0;
+    const intensity = hours / maxHours;
+    let color;
+    if (hours === 0) color = "var(--paper)";
+    else if (intensity < 0.33) color = "var(--accent-soft)";
+    else if (intensity < 0.66) color = "var(--accent)";
+    else color = "#1a5dc4";
+    days.push({ date: ds, dayNum: d.getDate(), hours, color });
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
 }
 
 module.exports = { DailySummaryService };

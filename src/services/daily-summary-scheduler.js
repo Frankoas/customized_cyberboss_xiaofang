@@ -80,16 +80,38 @@ class DailySummaryScheduler {
   }
 
   /**
+   * Check if today is a weekly summary day (Sunday).
+   */
+  isWeeklySummaryDay() {
+    return new Date().getDay() === 0;
+  }
+
+  /**
+   * Check if today is a monthly summary day (15th).
+   */
+  isMonthlySummaryDay() {
+    return new Date().getDate() === 15;
+  }
+
+  /**
    * Build a system message trigger text that prompts the model
-   * to generate the daily summary.
+   * to generate the daily summary. Includes weekly/monthly context.
    */
   buildSummaryTrigger() {
     const today = formatDate(new Date());
-    return [
+    const parts = [
       `Daily summary time. Today is ${today}.`,
       `Call cyberboss_daily_summary with action=generate to create the end-of-day summary.`,
-      `After generating, briefly describe the highlights to the user in a warm, natural tone.`,
-    ].join(" ");
+      `After generating, use cyberboss_summary_screenshot to capture and send the HTML screenshot.`,
+    ];
+    if (this.isWeeklySummaryDay()) {
+      parts.push(`Today is Sunday — after the daily summary, also call action=generate_weekly and screenshot the weekly summary with summaryType: "weekly".`);
+    }
+    if (this.isMonthlySummaryDay()) {
+      parts.push(`Today is the 15th — after the daily summary, also call action=generate_monthly and screenshot the monthly summary with summaryType: "monthly".`);
+    }
+    parts.push(`After generating, briefly describe the highlights to the user in a warm, natural tone.`);
+    return parts.join(" ");
   }
 
   /**

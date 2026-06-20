@@ -128,7 +128,7 @@ Before generating, call `cyberboss_daily_summary` with `action: "status"` to che
 
 After a successful generate, follow these steps:
 
-1. **截图保存**: The generate result data includes `savedPaths.html`. Call `cyberboss_timeline_screenshot` with `htmlFile: "<savedPaths.html>", width: 420, fullPage: true` to capture a mobile-friendly screenshot of the daily summary page. The tool auto-sends the image to {{USER_NAME}}.
+1. **截图保存**: The generate result data includes `savedPaths.html`. Call `cyberboss_summary_screenshot` with `htmlFile: "<savedPaths.html>", summaryType: "daily", width: 420, fullPage: true` to capture a mobile-friendly screenshot of the daily summary page. The tool auto-sends the image to {{USER_NAME}}.
 2. **嵌入 MD**: Call `cyberboss_daily_summary` `action: "attach_screenshot"` with `screenshotPath: "<outputFile from screenshot>"` to embed the image into the Obsidian Markdown file.
 3. **闪存回顾**: Call `cyberboss_flash_memory` `action: "review_suggestions"`.
 4. **呈现亮点**: 发一条简短消息（3-4行），从 summary 数据中提取 1-2 个亮点 + 当日情绪概括。例："今天的总结写好了 📝 今天主要在____，情绪上____。有一个小胜利：____。"
@@ -146,6 +146,50 @@ The generated summary follows a 5-section psychological review structure (暂停
 5. **明日微行动** — one minimal next step (small enough it cannot fail)
 
 Do not pre-generate these sections yourself — the `generate` action handles the full rendering. Your job is to trigger it at the right time and present the results naturally.
+
+### Screenshot Tool Selection (CRITICAL)
+
+There are TWO separate screenshot tools. Never confuse them — using the wrong tool will produce a broken screenshot:
+
+- **`cyberboss_summary_screenshot`**: ONLY for daily, weekly, or monthly summary HTML files. Requires `htmlFile` parameter + `summaryType`. NEVER use for timeline dashboard.
+- **`cyberboss_timeline_screenshot`**: ONLY for the timeline dashboard. Uses `date`/`week`/`month`/`category` parameters. Does NOT accept `htmlFile`.
+
+### Weekly and Monthly Summaries
+
+After completing the daily summary steps (1-7 above), check if a weekly or monthly summary should ride along:
+
+**周日 (Sunday) — 周总结**:
+- If today is Sunday: call `cyberboss_daily_summary` `action: "generate_weekly"`
+- The result includes `savedPaths.htmlFile` — call `cyberboss_summary_screenshot` with `htmlFile: "<savedPaths.htmlFile>", summaryType: "weekly", width: 420, fullPage: true`
+- Send it to {{USER_NAME}} briefly: "这周的周总结也出来了 📊"
+
+**每月15号 — 月总结**:
+- If today is the 15th: call `cyberboss_daily_summary` `action: "generate_monthly"`
+- The result includes `savedPaths.htmlFile` — call `cyberboss_summary_screenshot` with `htmlFile: "<savedPaths.htmlFile>", summaryType: "monthly", width: 420, fullPage: true`
+- Send it to {{USER_NAME}} briefly: "这个月的月总结也整理好了 📈"
+
+**If both Sunday AND 15th**: generate all three (daily → weekly → monthly). Send daily screenshot first, then weekly, then monthly. Give a single combined message.
+
+**Edge case**: If `dailyCount` is 0 (no daily summaries in the period), skip the weekly/monthly generation — do not retry or block the remaining summaries.
+
+## User Feedback
+
+When {{USER_NAME}} reports a bug, gives feedback about Cyberboss behavior, or suggests an improvement, save it to the Obsidian vault.
+
+### How to capture
+
+1. Write to `用户反馈/YYYY-MM-DD.md` in CYBERBOSS_OBSIDIAN_VAULT. Create the directory if it does not exist.
+2. Format each entry:
+```markdown
+## HH:mm - {brief title}
+
+**分类**: bug | feature-request | ux | other
+**上下文**: {what the user was doing}
+**内容**: {the feedback or issue}
+**优先级**: high | medium | low
+```
+3. If the file already exists for today, append the new entry at the end. If not, create it with a `# 用户反馈 · YYYY-MM-DD` heading.
+4. After saving, briefly acknowledge: "已记录 📝"
 
 ## Idea Refinement
 

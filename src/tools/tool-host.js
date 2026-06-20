@@ -400,8 +400,8 @@ const PROJECT_TOOLS = [
       properties: {
         action: {
           type: "string",
-          description: "Action: generate (create a summary for a date), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate), attach_screenshot (embed a screenshot image into the summary MD file).",
-          enum: ["generate", "status", "append_plan", "finalize", "read", "check", "attach_screenshot"],
+          description: "Action: generate (create a daily summary), status (check if summary exists), append_plan (add tomorrow's plan), finalize (lock a draft as final), read (get an existing summary's Markdown content), check (ask scheduler if it's time to generate), attach_screenshot (embed a screenshot image into the summary MD file), generate_weekly (aggregate 7 days into a weekly summary), generate_monthly (aggregate the month into a monthly summary).",
+          enum: ["generate", "status", "append_plan", "finalize", "read", "check", "attach_screenshot", "generate_weekly", "generate_monthly"],
         },
         date: { type: "string", description: "[all] Target date in YYYY-MM-DD. Defaults to today." },
         format: { type: "string", description: "[generate] Output format: full (complete summary with all sections) or brief (stats-only)." },
@@ -518,6 +518,20 @@ const PROJECT_TOOLS = [
           });
           return {
             text: `Screenshot attached to ${result.date} summary: ${result.filePath}`,
+            data: result,
+          };
+        }
+        case "generate_weekly": {
+          const result = await svc.generateWeeklySummary({ date: args.date });
+          return {
+            text: `Weekly summary generated for ${result.weekLabel}. ${result.dailyCount} days tracked. Stats: ${result.stats.eventCount} events, ${result.stats.flashCount} flashes, ${result.stats.quizCount} quiz items, ${result.stats.quizRate}% correct. HTML: ${result.savedPaths.htmlFile}`,
+            data: result,
+          };
+        }
+        case "generate_monthly": {
+          const result = await svc.generateMonthlySummary({ date: args.date });
+          return {
+            text: `Monthly summary generated for ${result.monthLabel}. ${result.dailyCount} days tracked. Stats: ${result.stats.eventCount} events, ${result.stats.flashCount} flashes, ${result.stats.quizCount} quiz items, ${result.stats.quizRate}% correct. HTML: ${result.savedPaths.htmlFile}`,
             data: result,
           };
         }
@@ -1051,15 +1065,14 @@ const PROJECT_TOOLS = [
   },
   {
     name: "cyberboss_timeline_screenshot",
-    description: "Capture a timeline screenshot and send it back to the current WeChat chat.",
-    shortHint: "Capture a timeline screenshot with structured selection fields.",
+    description: "Capture a timeline dashboard screenshot and send it back to the current WeChat chat. ONLY for the timeline dashboard — do NOT use for summary HTML files.",
+    shortHint: "Capture a timeline dashboard screenshot.",
     topics: ["timeline"],
     inputSchema: {
       type: "object",
       properties: {
         userId: { type: "string", description: "Optional explicit WeChat user id." },
         outputFile: { type: "string", description: "Optional absolute output path for the PNG file." },
-        selector: { type: "string", description: "main, timeline, analytics, events, or a custom CSS selector." },
         range: { type: "string", description: "Optional range: day, week, or month." },
         date: { type: "string", description: "Optional day selector YYYY-MM-DD." },
         week: { type: "string", description: "Optional week key." },
@@ -1070,7 +1083,6 @@ const PROJECT_TOOLS = [
         height: { type: "integer", description: "Optional viewport height in pixels." },
         sidePadding: { type: "integer", description: "Optional screenshot padding in pixels." },
         locale: { type: "string", description: "Optional timeline locale." },
-        htmlFile: { type: "string", description: "Absolute path to a standalone HTML file to screenshot (daily summary mode). Takes priority over timeline mode." },
         fullPage: { type: "boolean", description: "Capture the full scrollable page height (default true). Set false for fixed viewport." },
       },
       additionalProperties: false,
@@ -1079,34 +1091,18 @@ const PROJECT_TOOLS = [
       const { ScreenshotService } = require("../services/screenshot-service");
       const screenshotter = new ScreenshotService({ config: services.timeline?.config || {} });
 
-      let captured;
-      const htmlFile = String(args.htmlFile || "").trim();
-
-      if (htmlFile) {
-        // Daily summary mode: screenshot a specific HTML file
-        captured = await screenshotter.capture({
-          htmlFile: args.htmlFile,
-          outputFile: args.outputFile,
-          width: args.width || 420,
-          height: args.height || 900,
-          fullPage: args.fullPage !== false,
-          selector: args.selector || "",
-        });
-      } else {
-        // Timeline dashboard mode: serve the built timeline site
-        const siteDir = path.join(
-          services.timeline?.config?.stateDir || path.join(os.homedir(), ".cyberboss"),
-          "timeline", "site"
-        );
-        captured = await screenshotter.capture({
-          siteDir,
-          outputFile: args.outputFile,
-          width: args.width || 420,
-          height: args.height || 900,
-          fullPage: args.fullPage !== false,
-          selector: args.selector || "",
-        });
-      }
+      // Timeline dashboard mode: serve the built timeline site
+      const siteDir = path.join(
+        services.timeline?.config?.stateDir || path.join(os.homedir(), ".cyberboss"),
+        "timeline", "site"
+      );
+      const captured = await screenshotter.capture({
+        siteDir,
+        outputFile: args.outputFile,
+        width: args.width || 420,
+        height: args.height || 900,
+        fullPage: args.fullPage !== false,
+      });
 
       // Send to WeChat
       const delivery = await services.channelFile.sendToCurrentChat({
@@ -1115,7 +1111,50 @@ const PROJECT_TOOLS = [
       }, context).catch((err) => ({ error: err.message }));
 
       return {
-        text: `Screenshot saved: ${captured.outputFile}`,
+        text: `Timeline screenshot saved: ${captured.outputFile}`,
+        data: { ...captured, delivery },
+      };
+    },
+  },
+  {
+    name: "cyberboss_summary_screenshot",
+    description: "Capture a summary HTML page screenshot and send it to the current WeChat chat. Used for daily (日终总结), weekly (周总结), and monthly (月总结) summary HTML files. Requires an htmlFile path. ONLY for summary HTML files — do NOT use for timeline dashboard screenshots.",
+    shortHint: "Capture a summary page screenshot from an HTML file.",
+    topics: ["summary"],
+    inputSchema: {
+      type: "object",
+      required: ["htmlFile"],
+      properties: {
+        htmlFile: { type: "string", description: "Absolute path to a summary HTML file (daily, weekly, or monthly)." },
+        summaryType: { type: "string", description: "Type of summary: daily, weekly, or monthly.", enum: ["daily", "weekly", "monthly"] },
+        userId: { type: "string", description: "Optional explicit WeChat user id." },
+        outputFile: { type: "string", description: "Optional absolute output path for the PNG file." },
+        width: { type: "integer", description: "Optional viewport width in pixels (default 420)." },
+        height: { type: "integer", description: "Optional viewport height in pixels (default 900)." },
+        fullPage: { type: "boolean", description: "Capture the full scrollable page height (default true). Set false for fixed viewport." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args, context }) {
+      const { ScreenshotService } = require("../services/screenshot-service");
+      const screenshotter = new ScreenshotService({ config: services.timeline?.config || {} });
+
+      const captured = await screenshotter.capture({
+        htmlFile: args.htmlFile,
+        outputFile: args.outputFile,
+        width: args.width || 420,
+        height: args.height || 900,
+        fullPage: args.fullPage !== false,
+      });
+
+      // Send to WeChat
+      const delivery = await services.channelFile.sendToCurrentChat({
+        userId: args.userId,
+        filePath: captured.outputFile,
+      }, context).catch((err) => ({ error: err.message }));
+
+      return {
+        text: `${args.summaryType || "Summary"} screenshot saved: ${captured.outputFile}`,
         data: { ...captured, delivery },
       };
     },
