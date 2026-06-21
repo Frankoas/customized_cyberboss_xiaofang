@@ -90,6 +90,7 @@ class CyberbossApp {
       onDeferredSystemReply: (payload) => this.deferSystemReply(payload),
     });
     this.pendingOperationByRunKey = new Map();
+    this.systemTurnScopeKeys = new Set();
     this.runtimeEventChain = Promise.resolve();
     this.runtimeAdapter.onEvent((event) => {
       this.threadStateStore.applyRuntimeEvent(event);
@@ -948,7 +949,18 @@ class CyberbossApp {
     if (this.isTurnDispatchBlocked(bindingKey, workspaceRoot)) {
       return false;
     }
-    return this.dispatchPreparedTurn({ bindingKey, workspaceRoot, prepared });
+    const scopeKey = buildScopeKey(bindingKey, workspaceRoot);
+    if (scopeKey && this.systemTurnScopeKeys) {
+      this.systemTurnScopeKeys.add(scopeKey);
+    }
+    try {
+      return await this.dispatchPreparedTurn({ bindingKey, workspaceRoot, prepared });
+    } catch (error) {
+      if (scopeKey && this.systemTurnScopeKeys) {
+        this.systemTurnScopeKeys.delete(scopeKey);
+      }
+      throw error;
+    }
   }
 
   async dispatchChannelCommand(normalized, command) {
@@ -1663,6 +1675,7 @@ class CyberbossApp {
       } finally {
         if (scopeKey) {
           this.turnBoundaryScopeKeys.delete(scopeKey);
+          this.systemTurnScopeKeys?.delete(scopeKey);
         }
       }
       return;
@@ -1675,8 +1688,11 @@ class CyberbossApp {
     if (!linked?.workspaceRoot) {
       return;
     }
+    const scopeKey = buildScopeKey(linked.bindingKey, linked.workspaceRoot);
+    const isSystemTurn = scopeKey && this.systemTurnScopeKeys?.has(scopeKey);
     const allowlist = sessionStore.getApprovalCommandAllowlistForWorkspace(linked.workspaceRoot);
-    const shouldAutoApprove = isAutoApprovedStateDirOperation(event.payload, this.config)
+    const shouldAutoApprove = isSystemTurn
+      || isAutoApprovedStateDirOperation(event.payload, this.config)
       || matchesBuiltInCommandPrefix(event.payload.commandTokens)
       || matchesCommandPrefix(event.payload.commandTokens, allowlist);
     if (!shouldAutoApprove) {
