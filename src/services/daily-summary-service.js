@@ -1960,8 +1960,8 @@ class DailySummaryService {
     const eventItems = events.map((e) => {
       const cat = e.categoryId || "other";
       const c = PALETTE[cat] || PALETTE.other;
-      const st = e.startAt ? e.startAt.slice(11, 16) : "??:??";
-      const et = e.endAt   ? e.endAt.slice(11, 16)   : "??:??";
+      const st = formatEventTime(e.startAt);
+      const et = formatEventTime(e.endAt);
       const dm = e._durationMinutes || 0;
       let ds = "";
       if (dm >= 60) { const hh = Math.floor(dm / 60); const mm = dm % 60; ds = mm ? `${hh}h${mm}m` : `${hh}h`; }
