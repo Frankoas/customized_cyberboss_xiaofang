@@ -42,6 +42,7 @@ const {
 } = require("../adapters/runtime/shared/approval-command");
 const { runSystemCheckinPoller } = require("../app/system-checkin-poller");
 const { createProjectTooling } = require("../tools/create-project-tooling");
+const { TriggerInterceptor } = require("../app/trigger-interceptor");
 const DEFAULT_LONG_POLL_TIMEOUT_MS = 35_000;
 const MIN_LONG_POLL_TIMEOUT_MS = 2_000;
 const SESSION_EXPIRED_ERRCODE = -14;
@@ -70,6 +71,10 @@ class CyberbossApp {
     this.projectServices = projectTooling.services;
     this.projectToolHost = projectTooling.toolHost;
     this.runtimeContextStore = projectTooling.runtimeContextStore;
+    // v1.0.0: deterministic trigger interceptor
+    this.triggerInterceptor = new TriggerInterceptor({
+      services: this.projectServices,
+    });
     this.runtimeAdapter = createRuntimeAdapter(config);
     this.threadStateStore = new ThreadStateStore();
     this.systemMessageQueue = new SystemMessageQueueStore({ filePath: config.systemMessageQueueFile });
@@ -437,7 +442,14 @@ class CyberbossApp {
 
     try {
       const model = this.runtimeAdapter.getSessionStore().getRuntimeParamsForWorkspace(bindingKey, workspaceRoot).model;
-      const runtimeTurn = await this.buildRuntimeTurn({ prepared, model });
+      let runtimeTurn = await this.buildRuntimeTurn({ prepared, model });
+
+      // v1.0.0: run deterministic trigger interceptor before LLM sees the text
+      const triggerResult = this.triggerInterceptor.scan(prepared.text);
+      if (triggerResult && triggerResult.notifications.length > 0) {
+        const prefix = triggerResult.notifications.join("\n") + "\n\n";
+        runtimeTurn = { ...runtimeTurn, text: prefix + runtimeTurn.text };
+      }
       const sendTurn = typeof this.runtimeAdapter.sendTurn === "function"
         ? this.runtimeAdapter.sendTurn.bind(this.runtimeAdapter)
         : this.runtimeAdapter.sendTextTurn.bind(this.runtimeAdapter);

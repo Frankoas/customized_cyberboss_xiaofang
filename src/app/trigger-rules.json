@@ -1,0 +1,37 @@
+{
+  "names": {
+    "pattern": "(?:我有一个?|我的|认识|一个)(?:朋友|同学|同事|哥们|兄弟|闺蜜|室友|老师|老板|客户|合伙人|队友|室友)(?:叫|是|名叫)?\\s*([\\u4e00-\\u9fff]{2,4})",
+    "description": "检测对话中出现的新人名",
+    "action": "update_keywords_and_notify"
+  },
+  "meeting": {
+    "pattern": "(?:见|约|找|跟|和|同|去见|约了|去找|见了|碰头|碰面|见面|赴约|去接|去送)(?:了|过|一下|个面)?\\s*([\\u4e00-\\u9fff]{2,4})",
+    "description": "检测见面/约会信号",
+    "action": "notify_meeting_briefing"
+  },
+  "flash": {
+    "pattern": "(?:灵感|想法|点子|记一下|备忘|提醒我|别忘了|突然想到|忽然想到|刚想到|想起来)(?:了|一个|一下)?",
+    "description": "检测闪存/灵感信号",
+    "action": "notify_flash_capture"
+  },
+  "feedback": {
+    "pattern": "(?:能不能加|可以加|希望支持|要是能|能不能(?:让|把)|加一个?功能|出bug|好像不对|没反应|不(?:太|怎么)好用|不太方便|每次都要|怎么(?:没有|不能|不行))",
+    "description": "检测用户反馈/bug报告信号",
+    "action": "notify_feedback"
+  },
+  "commute": {
+    "pattern": "(?:通勤|坐车|地铁|公交|高铁|打车|路上|在车|出发了|出门了|去(?:学校|公司|上班|上学))",
+    "description": "检测通勤信号",
+    "action": "notify_commute_quiz"
+  },
+  "endOfDay": {
+    "pattern": "(?:收工|睡了|晚安|bye|拜拜|下了|关机|关电脑|不搞了|明天(?:再|见)|去睡|休息了|躺平)",
+    "description": "检测收工/就寝信号",
+    "action": "notify_daily_summary"
+  },
+  "nameAliases": {
+    "pattern": "(?:就叫|叫他|她叫|名叫|绰号|外号|别称|大家都叫|通常叫|人称|一般叫)(?:是|叫|为)?\\s*([\\u4e00-\\u9fff]{2,4})",
+    "description": "检测人名别称/绰号",
+    "action": "update_keywords"
+  }
+}

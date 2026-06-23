@@ -7,7 +7,10 @@ const { FeedbackService } = require("../services/feedback-service");
 const { FlashMemoryService } = require("../services/flash-memory-service");
 const { IdeaRefinementService } = require("../services/idea-refinement-service");
 const { KnowledgeService } = require("../services/knowledge-service");
+const { PersonaGalleryService } = require("../services/persona-gallery-service");
+const { RelationshipHubService } = require("../services/relationship-hub-service");
 const { ReminderService } = require("../services/reminder-service");
+const { VaultMaintenanceService } = require("../services/vault-maintenance-service");
 const { StickerService } = require("../services/sticker-service");
 const { SystemMessageService } = require("../services/system-message-service");
 const { TimelineService } = require("../services/timeline-service");
@@ -32,7 +35,10 @@ function createProjectTooling(config, options = {}) {
     flashMemory: new FlashMemoryService({ config }),
     ideaRefinement: new IdeaRefinementService({ config }),
     knowledge: new KnowledgeService({ config }),
+    personaGallery: new PersonaGalleryService({ config }),
+    relationshipHub: new RelationshipHubService({ config }),
     reminder: new ReminderService({ config, sessionStore }),
+    vaultMaintenance: new VaultMaintenanceService({ config }),
     system: new SystemMessageService({ config, sessionStore }),
     channelFile,
     sticker: new StickerService({ config, channelAdapter, sessionStore, channelFileService: channelFile }),
