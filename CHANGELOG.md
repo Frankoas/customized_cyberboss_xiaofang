@@ -5,6 +5,53 @@ All notable changes to customized_cyberboss_xiaofang will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-23
+
+### Architecture — 架构大版本升级
+
+**6 项架构变更**：确定性触发器 + 全 MCP Tool 写入通道 + Prompt 瘦身/Skill 化 + 后台 Agent + 模型协作预留 + 双向确认机制
+
+### Added — 确定性触发器 (Phase 1)
+- `trigger-rules.json`: keyword + regex rules for name/meeting/flash/feedback detection
+- MCP server interceptor in `tool-host.js`: pre-LLM message scanning
+- Direct write chain: interceptor → service → vault (bypasses LLM)
+- LLM notification: system message injection after trigger fire
+
+### Added — 全 MCP Tool 写入通道 (Phase 0)
+- `cyberboss_relationship_hub`: 人际关系全写入 (person profiles, event logs, meeting briefs, relationship graph)
+- `cyberboss_persona_gallery`: 用户画像全写入 (observation logs, persona profiles, dimension files)
+- `cyberboss_vault_maintenance`: vault 维护全操作 (navigation, MOC, index updates, consistency checks)
+- All vault writes now go through MCP tools — LLM never directly writes vault files
+
+### Changed — Prompt 瘦身 + Skill 化 (Phase 2)
+- `weixin-operations.md`: 644 lines → ~80 line router + 9 on-demand skills
+- 6 new skill files: relationship-engine, user-feedback, persona-gallery, vault-maintenance, commute-quiz, sticker-auto
+- 3 existing skill files refactored: daily-summary, idea-refinement, flash-consolidation
+- Per-turn context: ~15K tokens → ~2K tokens (87% reduction)
+
+### Added — 后台 Agent + 一致性检查 (Phase 4)
+- `vault-maintenance` workflow script for non-real-time vault tasks
+- Vault consistency checker based on freshness strategy table
+- Write-log mechanism: `~/.cyberboss/write-log.jsonl`
+- CronCreate: daily 22:00 consistency check
+
+### Added — Zero-Popup Vault Writes
+- `systemTurnScopeKeys` + `permissions.allow` configuration
+- All vault write MCP tools registered in allowlist
+- Zero permission popups for vault operations
+
+### Changed — Documentation Sync (Phase 5)
+- README.md: full v1.0.0 rewrite with architecture diagram
+- CHANGELOG.md: v1.0.0 entry
+- Vault 动态更新机制: 4-layer → 6-layer architecture
+- 功能触发手册: updated for deterministic triggers + skill routing
+
+### Removed — Repo Cleanup
+- Personal screenshots: `docs/images/*.PNG`, `docs/images/*.jpg`
+- Redundant binary: `docs/optimization-plan-v0.2.0.pdf`
+- Temporary docs: `修改反馈日志.md`, `决策.md`, `计划书修改建议.md`
+- Unused asset: `assets/star-guide.jpg`
+
 ## [0.3.3] - 2026-06-23
 
 ### Added — Task List 任务调度表可视化
