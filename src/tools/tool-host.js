@@ -1366,6 +1366,213 @@ const PROJECT_TOOLS = [
       }
     },
   },
+  // ── v1.0.0 Phase 0: 3 new domain-aggregated MCP tools ──
+  {
+    name: "cyberboss_relationship_hub",
+    description: "Manage interpersonal relationship vault writes. All person profiles, event logs, meeting briefings, relationship graph updates, and name keyword table updates go through this tool. Input: { action: string, ... }",
+    shortHint: "Write or update relationship hub vault files.",
+    topics: ["relationship"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: write_person (create/update person profile), write_event (append event to daily log), write_briefing (create meeting briefing), update_graph (update relationship graph), update_network (update relationship network), update_keywords (update name keyword table).",
+          enum: ["write_person", "write_event", "write_briefing", "update_graph", "update_network", "update_keywords"],
+        },
+        name: { type: "string", description: "[write_person] Person's name (Chinese)." },
+        fields: { type: "object", description: "[write_person] Fields to update: { aliases?, relation?, traits?, notes?, events?, tags? }." },
+        date: { type: "string", description: "[write_event, write_briefing] Date in YYYY-MM-DD. Defaults to today." },
+        time: { type: "string", description: "[write_event] Time in HH:mm." },
+        title: { type: "string", description: "[write_event] Event title." },
+        description: { type: "string", description: "[write_event] Event description." },
+        peopleInvolved: { type: "array", items: { type: "string" }, description: "[write_event] People involved in the event." },
+        tags: { type: "array", items: { type: "string" }, description: "[write_event, write_person] Tags." },
+        personName: { type: "string", description: "[write_briefing] Person name for briefing." },
+        briefing: { type: "string", description: "[write_briefing] Briefing content." },
+        updates: { type: "string", description: "[update_graph] Graph updates to append." },
+        personA: { type: "string", description: "[update_network] First person name." },
+        personB: { type: "string", description: "[update_network] Second person name." },
+        strength: { type: "string", description: "[update_network] Relationship strength." },
+        note: { type: "string", description: "[update_network] Additional note." },
+        names: { type: "array", items: { type: "string" }, description: "[update_keywords] Names to add to keyword table." },
+        source: { type: "string", description: "[update_keywords] Source of the names." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const svc = services.relationshipHub;
+      if (!svc) throw new Error("RelationshipHubService not available.");
+
+      let result;
+      switch (action) {
+        case "write_person": {
+          result = svc.writePerson({ name: args.name, fields: args.fields || {} });
+          return { text: `Person ${result.created ? "created" : "updated"}: ${result.name} → ${result.filePath}`, data: result };
+        }
+        case "write_event": {
+          result = svc.writeEvent({
+            date: args.date, time: args.time, title: args.title,
+            description: args.description, peopleInvolved: args.peopleInvolved || [], tags: args.tags || [],
+          });
+          return { text: `Event logged: ${result.eventId} → ${result.filePath}`, data: result };
+        }
+        case "write_briefing": {
+          result = svc.writeBriefing({ personName: args.personName, date: args.date, briefing: args.briefing });
+          return { text: `Briefing created for ${result.person}: ${result.filePath}`, data: result };
+        }
+        case "update_graph": {
+          result = svc.updateGraph({ updates: args.updates });
+          return { text: `Graph ${result.created ? "created" : "updated"}: ${result.filePath}`, data: result };
+        }
+        case "update_network": {
+          result = svc.updateNetwork({ personA: args.personA, personB: args.personB, strength: args.strength, note: args.note });
+          return { text: `Network updated: ${result.filePath}`, data: result };
+        }
+        case "update_keywords": {
+          result = svc.updateKeywords({ names: args.names || [], source: args.source });
+          return { text: `Keywords ${result.updated ? "updated" : "no change"}: ${result.appended} added to ${result.filePath}`, data: result };
+        }
+        default:
+          throw new Error(`Unknown relationship_hub action: ${action}`);
+      }
+    },
+  },
+  {
+    name: "cyberboss_persona_gallery",
+    description: "Manage user persona vault writes. All observation logs, persona profiles, dimension files, and user profile updates go through this tool. Input: { action: string, ... }",
+    shortHint: "Write or update persona gallery vault files.",
+    topics: ["persona"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: write_observation (append observation to daily log), update_profile (update main persona profile), update_dimension (update a specific dimension file), update_user_profile (update user profile in vault root).",
+          enum: ["write_observation", "update_profile", "update_dimension", "update_user_profile"],
+        },
+        date: { type: "string", description: "[all] Date in YYYY-MM-DD. Defaults to today." },
+        text: { type: "string", description: "[write_observation] Observation text." },
+        source: { type: "string", description: "[write_observation] Source of the observation (e.g. 聊天, 日记, 闪存)." },
+        tags: { type: "array", items: { type: "string" }, description: "[write_observation] Tags." },
+        confidence: { type: "string", description: "[write_observation] Confidence level: high, medium, or low." },
+        section: { type: "string", description: "[update_profile, update_user_profile] Section name to update." },
+        content: { type: "string", description: "[update_profile, update_dimension, update_user_profile] Content to write." },
+        dimension: { type: "string", description: "[update_dimension] Dimension: 语言习惯, 行为模式, 决策风格, or 兴趣图谱." },
+        observations: { type: "array", items: { type: "string" }, description: "[update_dimension] Observation IDs to reference." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const svc = services.personaGallery;
+      if (!svc) throw new Error("PersonaGalleryService not available.");
+
+      let result;
+      switch (action) {
+        case "write_observation": {
+          result = svc.writeObservation({
+            date: args.date, text: args.text, source: args.source,
+            tags: args.tags || [], confidence: args.confidence || "medium",
+          });
+          return { text: `Observation logged: ${result.obsId} → ${result.filePath}`, data: result };
+        }
+        case "update_profile": {
+          result = svc.updateProfile({ date: args.date, section: args.section, content: args.content });
+          return { text: `Profile ${result.created ? "created" : "updated"}: ${result.filePath}`, data: result };
+        }
+        case "update_dimension": {
+          result = svc.updateDimension({
+            dimension: args.dimension, date: args.date,
+            content: args.content, observations: args.observations || [],
+          });
+          return { text: `Dimension ${result.created ? "created" : "updated"}: ${result.dimension} → ${result.filePath}`, data: result };
+        }
+        case "update_user_profile": {
+          result = svc.updateUserProfile({ section: args.section, content: args.content, date: args.date });
+          return { text: `User profile ${result.updated ? "updated" : "no change"}: ${result.filePath}`, data: result };
+        }
+        default:
+          throw new Error(`Unknown persona_gallery action: ${action}`);
+      }
+    },
+  },
+  {
+    name: "cyberboss_vault_maintenance",
+    description: "Manage non-real-time vault maintenance operations. Handles navigation updates, index/MOC file updates, write-log recording, vault consistency checking, and development log updates. Input: { action: string, ... }",
+    shortHint: "Run vault maintenance operations.",
+    topics: ["vault"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: update_navigation (update 导航.md), update_index (update any index/MOC file), check_consistency (run vault consistency scan), write_log (write to write-log), read_log (read recent write-log entries), update_dev_log (update development log files).",
+          enum: ["update_navigation", "update_index", "check_consistency", "write_log", "read_log", "update_dev_log"],
+        },
+        updates: { type: "string", description: "[update_navigation] Content to append to navigation." },
+        target: { type: "string", description: "[update_index] Index target: flash, knowledge, feedback, or ideas." },
+        entry: { type: "string", description: "[update_index] Markdown entry to append." },
+        date: { type: "string", description: "[check_consistency] Date in YYYY-MM-DD. Defaults to today." },
+        tool: { type: "string", description: "[write_log] Tool name that performed the write." },
+        toolAction: { type: "string", description: "[write_log] Action that was performed." },
+        targetPath: { type: "string", description: "[write_log] Target file path." },
+        bytesWritten: { type: "integer", description: "[write_log] Bytes written." },
+        summary: { type: "string", description: "[write_log] Summary of the write." },
+        since: { type: "string", description: "[read_log] ISO timestamp to filter entries from." },
+        limit: { type: "integer", description: "[read_log] Max entries to return." },
+        file: { type: "string", description: "[update_dev_log] Dev log file path relative to vault." },
+        content: { type: "string", description: "[update_dev_log] Content to write." },
+        writeAction: { type: "string", description: "[update_dev_log] Write action: append or overwrite." },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args }) {
+      const action = String(args.action || "").trim();
+      const svc = services.vaultMaintenance;
+      if (!svc) throw new Error("VaultMaintenanceService not available.");
+
+      let result;
+      switch (action) {
+        case "update_navigation": {
+          result = svc.updateNavigation({ updates: args.updates });
+          return { text: `Navigation ${result.created ? "created" : "updated"}: ${result.filePath}`, data: result };
+        }
+        case "update_index": {
+          result = svc.updateIndex({ target: args.target, entry: args.entry });
+          return { text: `Index ${result.created ? "created" : "updated"}: ${result.filePath}`, data: result };
+        }
+        case "check_consistency": {
+          result = svc.checkConsistency({ date: args.date });
+          return {
+            text: `Vault consistency check: ${result.summary.total} files checked, ${result.summary.ok} ok, ${result.summary.missing} missing, ${result.summary.stale} stale.`,
+            data: result,
+          };
+        }
+        case "write_log": {
+          result = svc.writeLogEntry({
+            tool: args.tool, action: args.toolAction, target: args.targetPath,
+            filePath: args.targetPath, bytesWritten: args.bytesWritten || 0, summary: args.summary,
+          });
+          return { text: `Write-log entry recorded: ${result.logPath}`, data: result };
+        }
+        case "read_log": {
+          result = svc.readWriteLog({ since: args.since, limit: args.limit || 100 });
+          return { text: `Write-log: ${result.total} entries found.`, data: result };
+        }
+        case "update_dev_log": {
+          result = svc.updateDevLog({ file: args.file, content: args.content, action: args.writeAction || "append" });
+          return { text: `Dev log ${result.action}: ${result.filePath}`, data: result };
+        }
+        default:
+          throw new Error(`Unknown vault_maintenance action: ${action}`);
+      }
+    },
+  },
 ];
 
 const STATIC_EXTRA_TOOL_NAMES = new WhereaboutsToolHost({ service: null })
