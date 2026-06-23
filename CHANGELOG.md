@@ -5,6 +5,37 @@ All notable changes to customized_cyberboss_xiaofang will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-06-23
+
+### Added — Task List 任务调度表可视化
+- `TaskListService`: aggregates 4 backend task sources (reminder queue, daily summary scheduler, idea refinement scheduler, cron triggers)
+- MCP tool `cyberboss_task_list` with 3 actions (list, query, status) — read-only
+- WeChat trigger: "有什么定时任务" / "调度器状态" → auto-call
+- Sorted by next-run time, Chinese relative time formatting
+
+### Added — Permission Model 权限模型
+- `weixin-operations.md` new "Permission Boundary" section: 3-tier model (✅ use / ❌ no direct edit / 📤 feedback report)
+- Vault core file protection: word lists, templates, manuals → Edit/Write blocked
+- Correct bug-report flow: analyze → diagnose → report via `cyberboss_user_feedback` → admin handles
+- `功能触发手册.md` §18: full permission spec with implementation details
+
+### Added — Persona Update Guard 画像更新守卫
+- `checkObservationLogMissing()` in `tool-host.js`: pre-generate check for observation log existence
+- `generate` result now includes `observationLogMissing` flag + ⚠️ warning in output text
+- Step 3 (persona observation extraction) strengthened to MANDATORY in `weixin-operations.md`
+
+### Fixed — Daily Summary Trigger Window
+- `daily-summary-scheduler.js`: auto-trigger window narrowed from `20:00-23:59` → `21:30-23:59`
+- Reason: user's evening activities (家教/复习) often run until 22:00+, 20:00 generation was premature
+- Added 20:00-21:29 grace period: `shouldGenerate=false` with recommendation to wait
+- Manual trigger ("收工" / `/summary`) unaffected
+
+### Changed
+- `weixin-operations.md`: +Task List section, +Permission Boundary section, +trigger window update, +Step 3 enforcement
+- `功能触发手册.md`: +§17 (Task List) + §18 (Permission Boundary)
+- `README.md`: version 0.3.2 → 0.3.3, full v0.3.3 section with verification
+- `package.json`: version 0.3.1 → 0.3.3
+
 ## [0.2.0] - 2026-06-20
 
 ### Added — Flash Memory 闪存记忆 (Phase 1)

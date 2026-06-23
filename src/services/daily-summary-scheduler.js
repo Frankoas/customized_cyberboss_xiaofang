@@ -32,6 +32,7 @@ class DailySummaryScheduler {
   shouldGenerateNow() {
     const now = new Date();
     const hour = now.getHours();
+    const minute = now.getMinutes();
     const today = formatDate(now);
     const state = this._readState();
 
@@ -44,11 +45,29 @@ class DailySummaryScheduler {
       };
     }
 
-    // Time window: 20:00 - 23:59 (auto window)
-    if (hour >= 20 && hour < 24) {
+    // v0.3.3 fix: narrow auto-trigger window from 20:00→21:30 start
+    // Reason: 20:00 is too early — user's day is often still ongoing (家教/晚课/复习)
+    // The 22:57 cron remains the definitive trigger; checkin window starts at 21:30
+    // to avoid premature generation that misses evening activities.
+    const autoWindowStartHour = 21;
+    const autoWindowStartMinute = 30;
+
+    // Time window: 21:30 - 23:59 (auto window)
+    if (hour > autoWindowStartHour || (hour === autoWindowStartHour && minute >= autoWindowStartMinute)) {
+      if (hour < 24) {
+        return {
+          shouldGenerate: true,
+          reason: `Within auto-generation window (21:30-23:59), current time: ${hour}:${String(minute).padStart(2, "0")}`,
+          lastGeneratedAt: null,
+        };
+      }
+    }
+
+    // Early evening grace: 20:00-21:29 — check but recommend waiting
+    if (hour === 20 || (hour === autoWindowStartHour && minute < autoWindowStartMinute)) {
       return {
-        shouldGenerate: true,
-        reason: `Within auto-generation window (20:00-23:59), current hour: ${hour}`,
+        shouldGenerate: false,
+        reason: `Early evening (${hour}:${String(minute).padStart(2, "0")}) — wait until 21:30 for auto-generation. User may still have evening activities. Use manual trigger ("收工"/"/summary") if day is truly done.`,
         lastGeneratedAt: null,
       };
     }
@@ -57,7 +76,7 @@ class DailySummaryScheduler {
     if (hour < 20) {
       return {
         shouldGenerate: false,
-        reason: `Before auto window (currently ${hour}:00), wait until 20:00 or user manually triggers`,
+        reason: `Before auto window (currently ${hour}:00), wait until 21:30 or user manually triggers`,
         lastGeneratedAt: null,
       };
     }

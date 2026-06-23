@@ -1,9 +1,9 @@
 # Customized Cyberboss 小方
 
-> Cyberboss v0.3.2 — 私人 AI 管家，为小方深度定制
+> Cyberboss v0.3.3 — 私人 AI 管家，为小方深度定制
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.2-green)](https://github.com/Frankoas/customized_cyberboss_xiaofang/releases)
+[![Version](https://img.shields.io/badge/version-0.3.3-green)](https://github.com/Frankoas/customized_cyberboss_xiaofang/releases)
 
 ## 这是什么
 
@@ -179,6 +179,7 @@ cyberboss/
 | **v0.3.0** | **2026-06-20** | **截图工具严格分离 + 周/月总结 + 实时用户反馈** |
 | v0.3.1 | 2026-06-20 | 日终情绪快照 (mood frontmatter + 周/月情绪光谱) |
 | **v0.3.2** | **2026-06-20** | **触发机制修复 + 反馈MCP Tool + Timeline显示修复 + 模板布局修复** |
+| **v0.3.3** | **2026-06-23** | **任务调度表可视化 + 权限模型 + 触发窗口修复 + 画像更新守卫** |
 | 🔮 打磨期 | 2026-06-20 → | [[开发日志/计划类/小而美收拢计划\|小而美]] + [[开发日志/版本管理类/模板统一与截图策略更新\|模板统一]] + [[开发日志/计划类/用户画像馆与人物卡计划书\|画像馆&人物卡]] |
 | 🔮 打磨期 | 2026-06-20 | **用户画像馆 v1 + 人际关系馆 + 触发引擎 + 见面简报** |
 
@@ -520,4 +521,67 @@ const CAT_HUB = {
 - ✅ 全部 vault 内链接可解析（0 死链）
 
 ---
-🤖 由 Cyberboss v0.3.2 驱动
+
+## v0.3.3 — 任务调度表 + 权限模型 + 触发检修（2026-06-23）
+
+基于用户反馈（`用户反馈/2026-06-21` · `用户反馈/2026-06-22`）和 [[开发日志/日常运维/用户反馈检修记录/v0.3.3-触发规则检修-2026-06-23|全量触发规则检修]]，完成 3 项核心交付：
+
+### 1. 任务调度表可视化 (`cyberboss_task_list`)
+
+**问题**: 后端调度器（reminder queue / daily summary scheduler / idea refinement scheduler / cron）各自独立运行，无统一查询入口。
+
+**修复**:
+- 新建 `src/services/task-list-service.js` — 聚合四类任务状态（reminder / daily_summary / idea_refinement / cron），按下次触发时间排序
+- 在 `tool-host.js` 注册 `cyberboss_task_list` MCP tool（3 actions：`list` / `query` / `status`）
+- `weixin-operations.md` 新增 "Task List" 章节：触发词（"有什么定时任务"/"调度器状态"）+ 呈现格式
+- `功能触发手册.md` 新增 §17 任务调度表可视化
+
+**权限**: 纯只读（list/query/status），无 cancel/reschedule。管理操作走反馈上报路径。
+
+### 2. 权限模型（Prompt 约束层）
+
+**问题**: 用户端 Cyberboss 发现 vault 内核文件 bug 后直接申请 Edit/Write 权限，无权限分层。
+
+**修复**:
+- `weixin-operations.md` 新增 "Permission Boundary" 章节：
+  - ✅ **使用权限**: MCP 调用、prompt 修改、触发规则修改（通过 MCP tool）
+  - ❌ **无直接文件修改权限**: vault 内核文件（词表、模板、手册）不可直接 Edit/Write
+  - 📤 **反馈上报路径**: 发现问题 → `cyberboss_user_feedback` → 管理员处理
+- `功能触发手册.md` 新增 §18 权限边界与反馈上报路径
+- 发现问题的正确流程：分析根因 → 给出诊断 → 不申请 Edit → 走反馈路径 → 告知用户
+
+### 3. 触发规则检修
+
+**🔴 日终总结触发窗口修复**:
+- `daily-summary-scheduler.js`: 自动触发窗口 `20:00-23:59` → `21:30-23:59`
+- 根因：小方晚间常有家教/复习到 22:00+，20:00 触发导致总结只覆盖到傍晚
+- 6/21（20:19）和 6/22（20:16）的过早触发生成已确认
+
+**🔴 用户画像更新守卫**:
+- `tool-host.js` generate action 新增 `checkObservationLogMissing` 预检查
+- 如果观察日志缺失或为空 → generate 结果中标记 `⚠️ 画像观察日志缺失`
+- `weixin-operations.md` Step 3 强化为 MANDATORY，不可跳过
+- 6/21 和 6/22 的画像维度更新待补做（观察日志已写入 9 条，但 5 个维度文件全停在 6/20）
+
+### 其他改动
+
+| 文件 | 操作 | 描述 |
+|------|:---:|------|
+| `src/services/task-list-service.js` | **NEW** | 四类任务状态聚合查询 |
+| `src/services/daily-summary-scheduler.js` | MODIFIED | 触发窗口 20:00→21:30 + 20:00-21:29 grace period |
+| `src/tools/tool-host.js` | MODIFIED | +`cyberboss_task_list` tool + `checkObservationLogMissing` 守卫 |
+| `CYBERBOSS_PROMPTS/weixin-operations.md` | MODIFIED | +Task List 章节 + Permission Boundary 章节 + 触发窗口更新 + Step 3 强制 |
+| `开发日志/手册类（已确定项）/功能触发手册.md` | MODIFIED | +§17 任务调度表 + §18 权限边界 (含 MCP tool schema + service 层代码示例) |
+| `开发日志/日常运维/用户反馈检修记录/v0.3.3-触发规则检修-2026-06-23.md` | **NEW** | 全量检修报告（5 问题诊断 → 根因 → 修复方案 → 待补做清单） |
+
+### 验收
+
+- ✅ `task-list-service.js` 语法检查通过
+- ✅ `daily-summary-scheduler.js` 语法检查通过
+- ✅ `tool-host.js` 语法检查通过（含新 tool + 守卫函数）
+- ✅ 权限模型双层保障：Prompt 约束 + Tool 级只读
+- ✅ 触发窗口逻辑：20:00-21:29 → false（提示等待），21:30-23:59 → true，手动"收工"始终可用
+- ✅ 画像守卫：generate 前检查 `用户画像馆/观察日志/YYYY-MM-DD.md` 存在且有实际观察
+
+---
+🤖 由 Cyberboss v0.3.3 驱动

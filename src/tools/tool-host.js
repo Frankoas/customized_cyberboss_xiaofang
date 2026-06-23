@@ -526,6 +526,16 @@ const PROJECT_TOOLS = [
           };
         }
         case "generate": {
+          // v0.3.3: pre-check — warn if today's observation log is missing
+          // Persona update (Step 3) must happen BEFORE generate
+          const observationLogMissing = checkObservationLogMissing({
+            config: scheduler.config || services.diary?.config || {},
+            date: args.date,
+          });
+          if (observationLogMissing) {
+            console.warn(`[cyberboss] WARNING: Observation log missing for ${observationLogMissing.date}. Persona update (Step 3) may have been skipped.`);
+          }
+
           const result = await svc.generate({
             date: args.date,
             format: args.format || "full",
@@ -544,8 +554,8 @@ const PROJECT_TOOLS = [
             });
           }
           return {
-            text: `Daily summary generated for ${result.date}. Sections: ${Object.keys(result.sections).join(", ")}. Stats: ${result.stats.eventCount} events, ${result.stats.flashTodayCount} flashes, ${result.stats.quizTodayCount} quiz items.`,
-            data: result,
+            text: `Daily summary generated for ${result.date}. Sections: ${Object.keys(result.sections).join(", ")}. Stats: ${result.stats.eventCount} events, ${result.stats.flashTodayCount} flashes, ${result.stats.quizTodayCount} quiz items.` + (observationLogMissing ? ` ⚠️ 画像观察日志缺失 — Step 3 可能被跳过。` : ""),
+            data: { ...result, observationLogMissing },
           };
         }
         case "status": {
@@ -1275,6 +1285,87 @@ const PROJECT_TOOLS = [
       };
     },
   },
+  {
+    name: "cyberboss_task_list",
+    description: "List and query Cyberboss backend scheduled tasks (reminders, daily summary, idea refinement, cron jobs). Read-only — no write/modify/cancel operations. For task management requests, use cyberboss_user_feedback to report. Input: { action: string, type?: string, status?: string }",
+    shortHint: "List or query backend scheduled tasks.",
+    topics: ["system"],
+    inputSchema: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: {
+          type: "string",
+          description: "Action: list (all pending/running tasks with next-run times), query (filter by type: reminder|daily_summary|idea_refinement|cron), status (show scheduler health summary).",
+          enum: ["list", "query", "status"],
+        },
+        type: {
+          type: "string",
+          description: "[query] Filter by task type: reminder, daily_summary, idea_refinement, cron.",
+          enum: ["reminder", "daily_summary", "idea_refinement", "cron"],
+        },
+        status: {
+          type: "string",
+          description: "[list] Filter by task status: pending, due, running, completed.",
+          enum: ["pending", "due", "running", "completed"],
+        },
+      },
+      additionalProperties: false,
+    },
+    async handler({ services, args, context }) {
+      const { TaskListService } = require("../services/task-list-service");
+
+      if (!services._taskList) {
+        services._taskList = new TaskListService({
+          config: services.diary?.config || services.timeline?.config || {},
+          services,
+        });
+      }
+      const svc = services._taskList;
+      const action = String(args.action || "").trim();
+
+      switch (action) {
+        case "list": {
+          const result = await svc.listTasks({ status: args.status || "all" });
+          const statusSummary = Object.entries(result.statusCounts)
+            .map(([s, c]) => `${s}: ${c}`)
+            .join(", ");
+          return {
+            text: `任务调度表 · 共 ${result.totalCount} 个任务 (${statusSummary || "无"}). 生成时间: ${result.generatedAt}`,
+            data: result,
+          };
+        }
+        case "query": {
+          const result = await svc.queryTasks({ type: args.type });
+          const statusSummary = Object.entries(result.statusCounts)
+            .map(([s, c]) => `${s}: ${c}`)
+            .join(", ");
+          return {
+            text: `任务类型 "${args.type}" · 共 ${result.totalCount} 个任务 (${statusSummary || "无"}).`,
+            data: result,
+          };
+        }
+        case "status": {
+          const result = await svc.listTasks();
+          const health = {
+            totalTasks: result.totalCount,
+            statusCounts: result.statusCounts,
+            dueCount: result.statusCounts.due || 0,
+            pendingCount: result.statusCounts.pending || 0,
+            runningCount: result.statusCounts.running || 0,
+            completedCount: result.statusCounts.completed || 0,
+            generatedAt: result.generatedAt,
+          };
+          return {
+            text: `调度器状态 · ${health.totalTasks} 任务: due=${health.dueCount}, pending=${health.pendingCount}, running=${health.runningCount}, completed=${health.completedCount}.`,
+            data: health,
+          };
+        }
+        default:
+          throw new Error(`Unknown action: ${action}. Use list, query, or status.`);
+      }
+    },
+  },
 ];
 
 const STATIC_EXTRA_TOOL_NAMES = new WhereaboutsToolHost({ service: null })
@@ -1362,6 +1453,42 @@ function writeTestModeCopy({ context, sourcePath, subDir, dataType, summary } = 
   } catch (err) {
     console.error(`[cyberboss] test mode copy failed: ${err.message}`);
     return { error: err.message };
+  }
+}
+
+/**
+ * v0.3.3: Check if today's persona observation log exists in the vault.
+ * Used as a pre-generate guard to warn when Step 3 was skipped.
+ */
+function checkObservationLogMissing({ config, date } = {}) {
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    const vault = process.env.CYBERBOSS_OBSIDIAN_VAULT;
+    if (!vault) return null;
+
+    const today = String(date || "").trim() || new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const logPath = path.join(vault, "用户画像馆", "观察日志", `${today}.md`);
+    if (!fs.existsSync(logPath)) {
+      return { missing: true, date: today, expectedPath: logPath };
+    }
+    // Check if it has actual observations (not just frontmatter + empty body)
+    const content = fs.readFileSync(logPath, "utf8");
+    const hasObservations = /^## obs-/m.test(content);
+    if (!hasObservations) {
+      return { missing: true, date: today, expectedPath: logPath, reason: "observation log exists but has no observations" };
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
